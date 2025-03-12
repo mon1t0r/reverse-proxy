@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=c11 -Werror -Wall
+CFLAGS=-Werror -Wall
 LDLIBS=
 OUTPUT=reverse_proxy
 
