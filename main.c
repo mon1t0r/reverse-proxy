@@ -29,6 +29,8 @@ int main() {
 
         uint8_t *source_addr = (uint8_t *) &ip->saddr;
         uint8_t *dest_addr = (uint8_t *) &ip->daddr;
+        uint8_t ip_hdr_len = ip->ihl * 4;
+
         printf("IP packet received\n");
         printf("-src IP: %d.%d.%d.%d\n", source_addr[0], source_addr[1], source_addr[2], source_addr[3]);
         printf("-dst IP: %d.%d.%d.%d\n", dest_addr[0], dest_addr[1], dest_addr[2], dest_addr[3]);
@@ -36,14 +38,14 @@ int main() {
 
         /* TCP protocol */
         if(ip->protocol == 6) {
-            struct tcphdr *tcp = (struct tcphdr *) (buf + 20);
+            struct tcphdr *tcp = (struct tcphdr *) (buf + ip_hdr_len);
             printf("-TCP source: %d\n", ntohs(tcp->source));
             printf("-TCP dest: %d\n", ntohs(tcp->dest));
         }
 
         /* UDP protocol */
         if(ip->protocol == 17) {
-            struct udphdr *udp = (struct udphdr *) (buf + 20);
+            struct udphdr *udp = (struct udphdr *) (buf + ip_hdr_len);
             printf("-UDP source: %d\n", ntohs(udp->source));
             printf("-UDP dest: %d\n", ntohs(udp->dest));
         }
