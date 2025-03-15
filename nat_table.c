@@ -38,7 +38,6 @@ struct nat_entry *nat_table_insert(struct nat_table *table, struct nat_entry ent
     size_t alloc_hash;
 
     struct nat_entry *entry_creat;
-    bool success;
 
     if(table == NULL) {
         return NULL;
