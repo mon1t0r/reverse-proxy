@@ -7,11 +7,14 @@ OUTPUT=reverse_proxy
 
 all: $(OUTPUT)
 
-$(OUTPUT): main.o
-	cppcheck --enable=performance unusedFunction --error-exitcode=1 *c
+$(OUTPUT): main.o nat_table.o
+	cppcheck --enable=performance unusedFunction --error-exitcode=1 --check-level=exhaustive *c
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
 main.o: main.c
+	$(CC) $(CFLAGS) -c $^ $(LDLIBS) -o $@
+
+nat_table.o: nat_table.c
 	$(CC) $(CFLAGS) -c $^ $(LDLIBS) -o $@
 
 clean:
