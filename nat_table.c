@@ -11,7 +11,7 @@ void map_node_free(struct nat_node *node);
 
 bool entries_equal(struct nat_entry *entry_1, struct nat_entry *entry_2);
 
-size_t hash_src(uint16_t src_port, uint32_t src_ip, size_t size);
+size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size);
 size_t hash_alloc(uint16_t dst_port, size_t size);
 unsigned int hash_num(unsigned int x);
 
@@ -43,8 +43,8 @@ struct nat_entry *nat_table_insert(struct nat_table *table, struct nat_entry ent
         return NULL;
     }
 
-    src_hash = hash_src(entry.src_port, entry.src_ip, table->size);
-    alloc_hash = hash_alloc(entry.alloc_port, table->size);
+    src_hash = hash_src(entry.port_src, entry.addr_src, table->size);
+    alloc_hash = hash_alloc(entry.port_alloc, table->size);
 
     entry_creat = malloc(sizeof(struct nat_entry));
     if(entry_creat == NULL) {
@@ -68,7 +68,7 @@ err:
 }
 
 /* Do not change files of the returned reference except timestamp. */
-struct nat_entry *nat_table_get_by_src(struct nat_table *table, uint16_t src_port, uint32_t src_ip) {
+struct nat_entry *nat_table_get_by_src(struct nat_table *table, uint16_t port_src, uint32_t addr_src) {
     size_t index;
     struct nat_node *node;
 
@@ -76,11 +76,11 @@ struct nat_entry *nat_table_get_by_src(struct nat_table *table, uint16_t src_por
         return NULL;
     }
 
-    index = hash_src(src_port, src_ip, table->size);
+    index = hash_src(port_src, addr_src, table->size);
 
     node = table->src_to_alloc_map[index];
     while(node) {
-        if(node->entry->src_port == src_port && node->entry->src_ip == src_ip) {
+        if(node->entry->port_src == port_src && node->entry->addr_src == addr_src) {
             return node->entry;
         }
         node = node->next;
@@ -90,7 +90,7 @@ struct nat_entry *nat_table_get_by_src(struct nat_table *table, uint16_t src_por
 }
 
 /* Do not change files of the returned reference except timestamp. */
-struct nat_entry *nat_table_get_by_alloc(struct nat_table *table, uint16_t alloc_port) {
+struct nat_entry *nat_table_get_by_alloc(struct nat_table *table, uint16_t port_alloc) {
     size_t index;
     struct nat_node *node;
 
@@ -98,11 +98,11 @@ struct nat_entry *nat_table_get_by_alloc(struct nat_table *table, uint16_t alloc
         return NULL;
     }
 
-    index = hash_alloc(alloc_port, table->size);
+    index = hash_alloc(port_alloc, table->size);
 
     node = table->alloc_to_src_map[index];
     while(node) {
-        if(node->entry->alloc_port == alloc_port) {
+        if(node->entry->port_alloc == port_alloc) {
             return NULL;
         }
         node = node->next;
@@ -188,23 +188,23 @@ void map_node_free(struct nat_node *node) {
 }
 
 bool entries_equal(struct nat_entry *entry_1, struct nat_entry *entry_2) {
-    if(entry_1->alloc_port != entry_2->alloc_port) {
+    if(entry_1->port_alloc != entry_2->port_alloc) {
         return false;
     }
 
-    if(entry_1->src_ip != entry_2->src_ip) {
+    if(entry_1->addr_src != entry_2->addr_src) {
         return false;
     }
 
-    if(entry_1->src_port != entry_2->src_port) {
+    if(entry_1->port_src != entry_2->port_src) {
         return false;
     }
 
     return true;
 }
 
-size_t hash_src(uint16_t src_port, uint32_t src_ip, size_t size) {
-    return hash_num(hash_num(src_port) + hash_num(src_ip)) % size;
+size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size) {
+    return hash_num(hash_num(port_src) + hash_num(addr_src)) % size;
 }
 
 size_t hash_alloc(uint16_t dst_port, size_t size) {

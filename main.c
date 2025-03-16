@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -32,16 +33,30 @@
 
 struct int_info {
     int index;
-    uint32_t ip;
+    uint32_t addr;
+};
+
+struct net_hdr_map {
+    uint32_t *addr_src;
+    uint32_t *addr_dst;
+    uint8_t *next_proto;
+    uint16_t *checksum;
+};
+
+struct trans_hdr_map {
+    uint16_t *port_src;
+    uint16_t *port_dst;
+    uint16_t *checksum;
 };
 
 int create_socket(struct int_info *int_info);
 
 bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *int_info, uint16_t *port_cntr);
 
-uint8_t map_network_header(uint8_t *buf, uint32_t **addr_src, uint32_t **addr_dst, uint8_t **next_proto);
-uint8_t map_transport_header(uint8_t *buf, uint8_t proto, uint16_t **port_src, uint16_t **port_dst);
+uint8_t map_network_header(uint8_t *buf, struct net_hdr_map *net_hdr_map);
+uint8_t map_transport_header(uint8_t *buf, uint8_t proto, struct trans_hdr_map *trans_hdr_map);
 uint16_t get_free_port(struct nat_table *nat_table, uint16_t *port_cntr);
+uint16_t recompute_checksum(uint16_t old_sum, uint32_t old_val, uint32_t new_val);
 
 int main() {
     uint8_t *buf;
@@ -54,7 +69,7 @@ int main() {
     struct int_info int_info;
     int socket_fd;
 
-    size_t recv_size;
+    size_t buf_len;
 
     buf = (uint8_t *) malloc(BUF_SIZE * sizeof(uint8_t));
     nat_table = nat_table_alloc(NAT_TABLE_SIZE);
@@ -66,21 +81,21 @@ int main() {
 
     printf("Listening on port %d...\n\n", LISTEN_PORT);
 
-    while ((recv_size = recvfrom(socket_fd, buf, BUF_SIZE, 0, &addr, &len)) > 0) {
-        printf("Received packet with length %u\n", len);
+    while ((buf_len = recvfrom(socket_fd, buf, BUF_SIZE, 0, &addr, &len)) > 0) {
+        printf("Received packet with length %lu\n", buf_len);
 
         if(!handle_packet(buf, nat_table, &int_info, &port_cntr)) {
             continue;
         }
 
-        printf("Sending reply... ");
+        printf("Sending packet... ");
 
-        if(sendto(socket_fd, buf, recv_size, 0, &addr, len) < 0) {
-            printf("Failed\n");
+        if(sendto(socket_fd, buf, buf_len, 0, &addr, len) < 0) {
+            printf("Failed\n\n");
             continue;
         }
 
-        printf("Success\n");
+        printf("Success\n\n");
     }
 
     close(socket_fd);
@@ -94,7 +109,6 @@ int create_socket(struct int_info *int_info) {
     int socket_fd;
     struct ifreq ifreq;
 
-    uint32_t ip_h_order;
     uint8_t *ip_splitted;
 
     if((socket_fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_IP))) < 0) {
@@ -122,10 +136,9 @@ int create_socket(struct int_info *int_info) {
         exit(EXIT_FAILURE);
     }
 
-    ip_h_order = ((struct sockaddr_in *) &ifreq.ifr_addr)->sin_addr.s_addr;
-    int_info->ip = htonl(ip_h_order);
-    
-    ip_splitted = (uint8_t *) &ip_h_order;
+    int_info->addr = ((struct sockaddr_in *) &ifreq.ifr_addr)->sin_addr.s_addr;
+
+    ip_splitted = (uint8_t *) &int_info->addr;
 
     printf("Socket\n");
     printf("|-name %s\n", INT_NAME);
@@ -137,86 +150,114 @@ int create_socket(struct int_info *int_info) {
 }
 
 bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *int_info, uint16_t *port_cntr) {
-    uint32_t *addr_src;
-    uint32_t *addr_dst;
-    uint8_t *trans_proto;
-    uint8_t netw_len;
+    struct net_hdr_map net_hdr_map;
+    uint8_t net_len;
 
-    uint16_t *port_src;
-    uint16_t *port_dst;
+    struct trans_hdr_map trans_hdr_map;
     uint8_t trans_len;
 
     struct nat_entry *nat_entry;
     struct nat_entry nat_entry_new;
 
-    netw_len = map_network_header(buf, &addr_src, &addr_dst, &trans_proto);
-    trans_len = map_transport_header(buf + netw_len, *trans_proto, &port_src, &port_dst);
+    net_len = map_network_header(buf, &net_hdr_map);
+    if(net_len <= 0) {
+        printf("Network header length is not positive. Ignoring packet\n\n");
+        return false;
+    }
 
+    trans_len = map_transport_header(buf + net_len, *net_hdr_map.next_proto, &trans_hdr_map);
     if(trans_len == 0) {
-        printf("Transport header length is 0. Ignoring packet\n");
+        printf("Transport header length is not positive. Ignoring packet\n\n");
         return false;
     }
 
-    if(*addr_dst != int_info->ip) {
-        printf("Destination IP is not equal to interface IP. Ignoring packet\n");
+    if(*net_hdr_map.addr_dst != int_info->addr) {
+        printf("Destination IP is not equal to interface IP. Ignoring packet\n\n");
         return false;
     }
 
-    if(ntohs(*port_dst) == LISTEN_PORT) {
+    if(ntohs(*trans_hdr_map.port_dst) == LISTEN_PORT) {
         printf("This is a packet from the client\n");
 
-        nat_entry = nat_table_get_by_src(nat_table, *port_src, *addr_src);
+        nat_entry = nat_table_get_by_src(nat_table, *trans_hdr_map.port_src, *net_hdr_map.addr_src);
         if(!nat_entry) {
-            nat_entry_new.src_port = *port_src;
-            nat_entry_new.src_ip = *addr_src;
-            nat_entry_new.alloc_port = get_free_port(nat_table, port_cntr);
+            nat_entry_new.port_src = *trans_hdr_map.port_src;
+            nat_entry_new.addr_src = *net_hdr_map.addr_src;
+            nat_entry_new.port_alloc = get_free_port(nat_table, port_cntr);
             nat_entry_new.alloc_time = time(NULL);
+
+            printf("NAT entry not found, creating a new one. Allocated port is %u\n", ntohs(nat_entry_new.port_alloc));
 
             nat_entry = nat_table_insert(nat_table, nat_entry_new);
             if(!nat_entry) {
+                printf("NAT table inser failed. Ignoring packet\n\n");
                 return false;
             }
         }
 
-        *addr_src = int_info->ip;
-        *port_src = nat_entry->alloc_port;
-        *addr_dst = htonl(DEST_IP);
-        *port_dst = htons(DEST_PORT);
-    } else if(ntohs(*port_src) == DEST_PORT && ntohl(*addr_src) == DEST_IP) {
+        *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr);
+        *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
+
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, int_info->addr, *net_hdr_map.addr_src);
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, DEST_IP, *net_hdr_map.addr_dst);
+
+        /* Do not recompute TCP checksum due to checksum offload */
+        /*
+            *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_src, nat_entry->port_alloc);
+            *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, htons(DEST_PORT));
+        */
+
+        *net_hdr_map.addr_src = int_info->addr;
+        *trans_hdr_map.port_src = nat_entry->port_alloc;
+        *net_hdr_map.addr_dst = DEST_IP;
+        *trans_hdr_map.port_dst = htons(DEST_PORT);
+    } else if(ntohs(*trans_hdr_map.port_src) == DEST_PORT && ntohl(*net_hdr_map.addr_src) == DEST_IP) {
         printf("This is a packet from the server\n");
 
-        nat_entry = nat_table_get_by_alloc(nat_table, *port_dst);
+        nat_entry = nat_table_get_by_alloc(nat_table, *trans_hdr_map.port_dst);
         if(!nat_entry) {
+            printf("NAT entry not found. Ignoring packet\n\n");
             return false;
         }
 
-        *addr_src = int_info->ip;
-        *port_src = LISTEN_PORT;
-        *addr_dst = nat_entry->src_ip;
-        *port_dst = nat_entry->src_port;
+        *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr);
+        *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
+
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, int_info->addr, *net_hdr_map.addr_src);
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, nat_entry->addr_src, *net_hdr_map.addr_dst);
+
+        /* Do not recompute TCP checksum due to checksum offload */
+        /*
+            *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_src, htons(LISTEN_PORT));
+            *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, nat_entry->port_src);
+        */
+
+        *net_hdr_map.addr_src = int_info->addr;
+        *trans_hdr_map.port_src = htons(LISTEN_PORT);
+        *net_hdr_map.addr_dst = nat_entry->addr_src;
+        *trans_hdr_map.port_dst = nat_entry->port_src;
     } else {
-        printf("This packet is not intended for proxy. Ignoring packet\n");
+        printf("This packet is not intended for proxy. Ignoring packet\n\n");
         return false;
     }
 
     return true;
-
-    /* TODO: Recalculate checksum*/
 }
 
-uint8_t map_network_header(uint8_t *buf, uint32_t **addr_src, uint32_t **addr_dst, uint8_t **next_proto) {
-    struct iphdr *iphdr; 
+uint8_t map_network_header(uint8_t *buf, struct net_hdr_map *net_hdr_map) {
+    struct iphdr *iphdr;
 
     iphdr = (struct iphdr *) buf;
 
-    *addr_src = &iphdr->saddr;
-    *addr_dst = &iphdr->daddr;
-    *next_proto = &iphdr->protocol;
+    net_hdr_map->addr_src = &iphdr->saddr;
+    net_hdr_map->addr_dst = &iphdr->daddr;
+    net_hdr_map->next_proto = &iphdr->protocol;
+    net_hdr_map->checksum = &iphdr->check;
 
     return iphdr->ihl * 4;
 }
 
-uint8_t map_transport_header(uint8_t *buf, uint8_t proto, uint16_t **port_src, uint16_t **port_dst) {
+uint8_t map_transport_header(uint8_t *buf, uint8_t proto, struct trans_hdr_map *trans_hdr_map) {
     struct tcphdr *tcphdr;
     struct udphdr *udphdr;
 
@@ -224,8 +265,9 @@ uint8_t map_transport_header(uint8_t *buf, uint8_t proto, uint16_t **port_src, u
     if(proto == 6) {
         tcphdr = (struct tcphdr *) buf;
 
-        *port_src = &tcphdr->source;
-        *port_dst = &tcphdr->dest;
+        trans_hdr_map->port_src = &tcphdr->source;
+        trans_hdr_map->port_dst = &tcphdr->dest;
+        trans_hdr_map->checksum = &tcphdr->check;
 
         return tcphdr->doff;
     }
@@ -234,8 +276,9 @@ uint8_t map_transport_header(uint8_t *buf, uint8_t proto, uint16_t **port_src, u
     if(proto == 17) {
         udphdr = (struct udphdr *) buf;
 
-        *port_src = &udphdr->source;
-        *port_dst = &udphdr->dest;
+        trans_hdr_map->port_src = &udphdr->source;
+        trans_hdr_map->port_dst = &udphdr->dest;
+        trans_hdr_map->checksum = &udphdr->check;
 
         return udphdr->len;
     }
@@ -260,3 +303,16 @@ uint16_t get_free_port(struct nat_table *nat_table, uint16_t *port_cntr) {
     return htons(*port_cntr);
 }
 
+uint16_t recompute_checksum(uint16_t old_sum, uint32_t old_val, uint32_t new_val) {
+    uint32_t sum;
+
+    sum = ~old_sum - (old_val & 0xFFFF) - (old_val >> 16);
+
+    sum = (sum & 0xFFFF) + (sum >> 16);
+
+    sum = sum + (new_val & 0xFFFF) + (new_val >> 16);
+
+    sum = (sum & 0xFFFF) + (sum >> 16);
+
+    return (u_int16_t) ~sum;
+}
