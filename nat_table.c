@@ -1,3 +1,6 @@
+#include <stdio.h>
+
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -77,6 +80,7 @@ struct nat_entry *nat_table_get_by_src(struct nat_table *table, uint16_t port_sr
     }
 
     index = hash_src(port_src, addr_src, table->size);
+    printf("Insert index is %lu\n", index);
 
     node = table->src_to_alloc_map[index];
     while(node) {
@@ -85,6 +89,7 @@ struct nat_entry *nat_table_get_by_src(struct nat_table *table, uint16_t port_sr
         }
         node = node->next;
     }
+    printf("Not found.\n");
 
     return NULL;
 }
