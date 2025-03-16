@@ -20,9 +20,9 @@
 #define NAT_PORT_RANGE_START 49160
 #define NAT_PORT_RANGE_END 50160
 
-#define INT_NAME "lo"
+#define INT_NAME "eno1"
 
-#define LISTEN_PORT 52879
+#define LISTEN_PORT 52880
 
 #define GATEWAY_MAC_1 0x74
 #define GATEWAY_MAC_2 0xFE
@@ -30,10 +30,10 @@
 #define GATEWAY_MAC_4 0x8C
 #define GATEWAY_MAC_5 0x87
 #define GATEWAY_MAC_6 0x11
-#define DEST_IP_1 142
-#define DEST_IP_2 251
-#define DEST_IP_3 40
-#define DEST_IP_4 206
+#define DEST_IP_1 146
+#define DEST_IP_2 190
+#define DEST_IP_3 62
+#define DEST_IP_4 39
 #define DEST_PORT 80
 
 #define DEST_IP (DEST_IP_1 | (DEST_IP_2 << 8) | (DEST_IP_3 << 16) | (DEST_IP_4 << 24))
@@ -86,13 +86,19 @@ int main() {
 
     memset(&addr, 0, sizeof(addr));
     addr.sll_family = AF_PACKET;
+    addr.sll_protocol = htons(ETH_P_IP);
     addr.sll_ifindex = int_info.index;
     addr.sll_halen = sizeof(int_info.addr_link);
-    memcpy(&addr.sll_addr, &int_info.addr_link, addr.sll_halen);
+    addr.sll_addr[0] = GATEWAY_MAC_1;
+    addr.sll_addr[1] = GATEWAY_MAC_2;
+    addr.sll_addr[2] = GATEWAY_MAC_3;
+    addr.sll_addr[3] = GATEWAY_MAC_4;
+    addr.sll_addr[4] = GATEWAY_MAC_5;
+    addr.sll_addr[5] = GATEWAY_MAC_6;
 
     printf("Listening on port %d...\n\n", LISTEN_PORT);
 
-    while ((buf_len = recv(socket_fd, buf, BUF_SIZE, 0) > 0)) {
+    while ((buf_len = recv(socket_fd, buf, BUF_SIZE, 0)) > 0) {
         printf("Received packet with length %ld\n", buf_len);
 
         if(!handle_packet(buf, nat_table, &int_info, &port_cntr)) {
@@ -159,10 +165,10 @@ int create_socket(struct int_info *int_info) {
     addr.sll_protocol = htons(ETH_P_IP);
     addr.sll_ifindex = int_info->index;
 
-    //if(bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    //    perror("bind()");
-    //    exit(EXIT_FAILURE);
-    //}
+    if(bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        perror("bind()");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Socket\n");
     printf("|-name %s\n", INT_NAME);
@@ -210,6 +216,7 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
             nat_entry_new.addr_src = *net_hdr_map.addr_src;
             nat_entry_new.port_alloc = get_free_port(nat_table, port_cntr);
             nat_entry_new.alloc_time = time(NULL);
+            // TODO: Add entry removal over time
 
             printf("NAT entry not found, creating a new one. Allocated port is %u\n", ntohs(nat_entry_new.port_alloc));
 
@@ -223,21 +230,18 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
         *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
         *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
 
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, int_info->addr_net, *net_hdr_map.addr_src);
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, DEST_IP, *net_hdr_map.addr_dst);
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
 
-        /* Do not recompute TCP checksum due to checksum offload */
-        /*
-            *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_src, nat_entry->port_alloc);
-            *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, htons(DEST_PORT));
-        */
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_src, nat_entry->port_alloc);
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, htons(DEST_PORT));
 
         *net_hdr_map.addr_src = int_info->addr_net;
         *trans_hdr_map.port_src = nat_entry->port_alloc;
         *net_hdr_map.addr_dst = DEST_IP;
         *trans_hdr_map.port_dst = htons(DEST_PORT);
-    } else if(ntohs(*trans_hdr_map.port_src) == DEST_PORT && ntohl(*net_hdr_map.addr_src) == DEST_IP) {
-        printf("This is a packet from the server\n");
+    } else if(*trans_hdr_map.port_src == htons(DEST_PORT) && *net_hdr_map.addr_src == DEST_IP) {
+        printf("This is a packet from the server on port %d\n", ntohs(*trans_hdr_map.port_dst));
 
         nat_entry = nat_table_get_by_alloc(nat_table, *trans_hdr_map.port_dst);
         if(!nat_entry) {
@@ -248,14 +252,11 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
         *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
         *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
 
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, int_info->addr_net, *net_hdr_map.addr_src);
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, nat_entry->addr_src, *net_hdr_map.addr_dst);
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
 
-        /* Do not recompute TCP checksum due to checksum offload */
-        /*
-            *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_src, htons(LISTEN_PORT));
-            *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, nat_entry->port_src);
-        */
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_src, htons(LISTEN_PORT));
+        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, nat_entry->port_src);
 
         *net_hdr_map.addr_src = int_info->addr_net;
         *trans_hdr_map.port_src = htons(LISTEN_PORT);

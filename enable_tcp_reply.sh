@@ -1,2 +1,2 @@
-iptables -D INPUT -p tcp --destination-port 52879 -j DROP
+iptables -D INPUT -p tcp --destination-port 52880 -j DROP
 
