@@ -1,12 +1,8 @@
-#include <stdio.h>
-
-
-#include <stddef.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include "nat_table.h"
+
+#include "include/nat_table.h"
 
 bool map_insert(struct nat_node **map, struct nat_entry *entry, size_t index);
 void map_free(struct nat_node **map, size_t size);

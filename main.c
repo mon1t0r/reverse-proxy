@@ -1,7 +1,7 @@
-#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -9,9 +9,11 @@
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netpacket/packet.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include "nat_table.h"
+
+#include "include/nat_table.h"
+#include "include/checksum.h"
+#include "include/network_layer.h"
+#include "include/transport_layer.h"
 
 #define ENABLE_LOG_INFO
 /*#define ENABLE_LOG_DEBUG*/
@@ -60,27 +62,11 @@ struct int_info {
     uint32_t addr_net;
 };
 
-struct net_hdr_map {
-    uint32_t *addr_src;
-    uint32_t *addr_dst;
-    uint8_t *next_proto;
-    uint16_t *checksum;
-};
-
-struct trans_hdr_map {
-    uint16_t *port_src;
-    uint16_t *port_dst;
-    uint16_t *checksum;
-};
-
 int create_socket(struct int_info *int_info);
 
 bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *int_info, uint16_t *port_cntr);
 
-uint8_t map_network_header(uint8_t *buf, struct net_hdr_map *net_hdr_map);
-uint8_t map_transport_header(uint8_t *buf, uint8_t proto, struct trans_hdr_map *trans_hdr_map);
 uint16_t get_free_port(struct nat_table *nat_table, uint16_t *port_cntr);
-uint16_t recompute_checksum(uint16_t old_sum, uint32_t old_val, uint32_t new_val);
 
 int main() {
     uint8_t *buf;
@@ -255,14 +241,14 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
         LOG_INFO("|-client port: %u\n", ntohs(*trans_hdr_map.port_src));
         LOG_INFO("|-alloc port: %u\n", ntohs(nat_entry->port_alloc));
 
-        *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
-        *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
+        *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+        *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
 
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
+        *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+        *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
 
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_src, nat_entry->port_alloc);
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, htons(dest_port));
+        *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum, *trans_hdr_map.port_src, nat_entry->port_alloc);
+        *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, htons(dest_port));
 
         *net_hdr_map.addr_src = int_info->addr_net;
         *trans_hdr_map.port_src = nat_entry->port_alloc;
@@ -285,14 +271,14 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
         LOG_INFO("|-client port: %u\n", ntohs(nat_entry->port_src));
         LOG_INFO("|-alloc port: %u\n", ntohs(nat_entry->port_alloc));
 
-        *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
-        *net_hdr_map.checksum = recompute_checksum(*net_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
+        *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+        *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
 
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
+        *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+        *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
 
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_src, htons(listen_port));
-        *trans_hdr_map.checksum = recompute_checksum(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, nat_entry->port_src);
+        *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum, *trans_hdr_map.port_src, htons(listen_port));
+        *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, nat_entry->port_src);
 
         *net_hdr_map.addr_src = int_info->addr_net;
         *trans_hdr_map.port_src = htons(listen_port);
@@ -304,48 +290,6 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
     }
 
     return true;
-}
-
-uint8_t map_network_header(uint8_t *buf, struct net_hdr_map *net_hdr_map) {
-    struct iphdr *iphdr;
-
-    iphdr = (struct iphdr *) buf;
-
-    net_hdr_map->addr_src = &iphdr->saddr;
-    net_hdr_map->addr_dst = &iphdr->daddr;
-    net_hdr_map->next_proto = &iphdr->protocol;
-    net_hdr_map->checksum = &iphdr->check;
-
-    return iphdr->ihl * 4;
-}
-
-uint8_t map_transport_header(uint8_t *buf, uint8_t proto, struct trans_hdr_map *trans_hdr_map) {
-    struct tcphdr *tcphdr;
-    struct udphdr *udphdr;
-
-    /* TCP protocol */
-    if(proto == 6) {
-        tcphdr = (struct tcphdr *) buf;
-
-        trans_hdr_map->port_src = &tcphdr->source;
-        trans_hdr_map->port_dst = &tcphdr->dest;
-        trans_hdr_map->checksum = &tcphdr->check;
-
-        return tcphdr->doff;
-    }
-
-    /* UDP protocol */
-    if(proto == 17) {
-        udphdr = (struct udphdr *) buf;
-
-        trans_hdr_map->port_src = &udphdr->source;
-        trans_hdr_map->port_dst = &udphdr->dest;
-        trans_hdr_map->checksum = &udphdr->check;
-
-        return udphdr->len;
-    }
-
-    return 0;
 }
 
 uint16_t get_free_port(struct nat_table *nat_table, uint16_t *port_cntr) {
@@ -363,18 +307,4 @@ uint16_t get_free_port(struct nat_table *nat_table, uint16_t *port_cntr) {
     }
 
     return htons(*port_cntr);
-}
-
-uint16_t recompute_checksum(uint16_t old_sum, uint32_t old_val, uint32_t new_val) {
-    uint32_t sum;
-
-    sum = ~old_sum - (old_val & 0xFFFF) - (old_val >> 16);
-
-    sum = (sum & 0xFFFF) + (sum >> 16);
-
-    sum = sum + (new_val & 0xFFFF) + (new_val >> 16);
-
-    sum = (sum & 0xFFFF) + (sum >> 16);
-
-    return (u_int16_t) ~sum;
 }
