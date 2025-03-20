@@ -9,6 +9,7 @@
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netpacket/packet.h>
+#include <arpa/inet.h>
 
 #include "include/nat_table.h"
 #include "include/checksum.h"
@@ -131,7 +132,7 @@ int create_socket(struct int_info *int_info) {
     struct sockaddr_ll addr;
 
     uint8_t addr_link[8];
-    uint8_t *addr_net;
+    struct in_addr addr_net;
 
     if((socket_fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_IP))) < 0) {
         perror("socket()");
@@ -172,13 +173,13 @@ int create_socket(struct int_info *int_info) {
         exit(EXIT_FAILURE);
     }
 
-    addr_net = (uint8_t *) &int_info->addr_net;
+    addr_net.s_addr = int_info->addr_net;
 
     LOG_INFO("Interface\n");
     LOG_INFO("|-name %s\n", INTERFACE_NAME);
     LOG_INFO("|-index %d\n", int_info->index);
     LOG_INFO("|-mac %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1], addr_link[2], addr_link[3], addr_link[4], addr_link[5]);
-    LOG_INFO("|-ip %d.%d.%d.%d\n", addr_net[0], addr_net[1], addr_net[2], addr_net[3]);
+    LOG_INFO("|-ip %s\n", inet_ntoa(addr_net));
     LOG_INFO("Socket initialized successfully\n\n");
 
     return socket_fd;
@@ -193,6 +194,8 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
 
     struct nat_entry *nat_entry;
     struct nat_entry nat_entry_new;
+
+    struct in_addr ip_addr;
 
     net_len = map_network_header(buf, &net_hdr_map);
     if(net_len == 0) {
@@ -236,8 +239,8 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
             }
         }
 
-        /* TODO: Fill in */
-        /* LOG_INFO("|-src addr: %d.%d.%d.%d\n", );*/
+        ip_addr.s_addr = *net_hdr_map.addr_src;
+        LOG_INFO("|-client addr: %s\n", inet_ntoa(ip_addr));
         LOG_INFO("|-client port: %u\n", ntohs(*trans_hdr_map.port_src));
         LOG_INFO("|-alloc port: %u\n", ntohs(nat_entry->port_alloc));
 
@@ -266,8 +269,8 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
             return false;
         }
 
-        /* TODO: Fill in */
-        /* LOG_INFO("|-src addr: %d.%d.%d.%d\n", );*/
+        ip_addr.s_addr = nat_entry->addr_src;
+        LOG_INFO("|-client addr: %s\n", inet_ntoa(ip_addr));
         LOG_INFO("|-client port: %u\n", ntohs(nat_entry->port_src));
         LOG_INFO("|-alloc port: %u\n", ntohs(nat_entry->port_alloc));
 
