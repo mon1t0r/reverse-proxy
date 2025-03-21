@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Werror -Wall
+CFLAGS=-Werror -Wall -pedantic -std=c99
 LDLIBS=
 OUTPUT=reverse_proxy
 
