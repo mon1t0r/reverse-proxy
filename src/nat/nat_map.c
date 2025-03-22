@@ -12,7 +12,7 @@ struct nat_map {
     struct nat_node **node_arr;
 };
 
-void list_free(struct nat_node *node, void (*free_callback)(struct nat_entry *));
+void list_free(struct nat_node *node, nat_map_free_callback free_callback);
 
 nat_map *nat_map_alloc(size_t size) {
     nat_map *nat_map;
