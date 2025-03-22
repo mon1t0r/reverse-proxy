@@ -36,9 +36,10 @@
 enum {
     packet_buf_size = 65536,
 
-    nat_table_size = 200,
+    nat_table_size = 50,
+    nat_table_entry_min_lifetime = 5 * 60,
     nat_port_range_start = 49160,
-    nat_port_range_end = 49180,
+    nat_port_range_end = 49190,
 
     listen_port = 52880,
 
@@ -65,14 +66,15 @@ struct int_info {
 
 int create_socket(struct int_info *int_info);
 
-bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *int_info, uint16_t *port_cntr);
+bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info, uint16_t *port_cntr);
 
-uint16_t get_free_port(struct nat_table *nat_table, uint16_t *port_cntr);
+bool cond_time(struct nat_entry entry, uint64_t data);
+uint16_t get_free_port(nat_table *nat_table, uint16_t *port_cntr);
 
 int main() {
     uint8_t *buf;
     uint16_t port_cntr;
-    struct nat_table *nat_table;
+    nat_table *nat_table;
 
     struct int_info int_info;
     int socket_fd;
@@ -190,7 +192,7 @@ int create_socket(struct int_info *int_info) {
     return socket_fd;
 }
 
-bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *int_info, uint16_t *port_cntr) {
+bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info, uint16_t *port_cntr) {
     struct net_hdr_map net_hdr_map;
     uint8_t net_len;
 
@@ -233,13 +235,32 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
         if(!nat_entry) {
             nat_entry_new.port_src = *trans_hdr_map.port_src;
             nat_entry_new.addr_src = *net_hdr_map.addr_src;
-            nat_entry_new.port_alloc = get_free_port(nat_table, port_cntr);
             nat_entry_new.alloc_time = time(NULL);
-            /* TODO: Add entry removal over time*/
+            nat_entry_new.port_alloc = get_free_port(nat_table, port_cntr);
+
+            if(nat_entry_new.port_alloc == 0) {
+                LOG_INFO("No free ports left in NAT port range. NAT table cleanup attempt...\n");
+
+                if(!nat_table_remove_if(nat_table, nat_entry_new.alloc_time, &cond_time)) {
+                    LOG_INFO("NAT table cleanup failed: No entries removed. Packet dropped.\n");
+                    return false;
+                }
+
+                LOG_INFO("Nat table cleanup success. Retrying to allocate a port...\n");
+
+                nat_entry_new.port_alloc = get_free_port(nat_table, port_cntr);
+
+                if(nat_entry_new.port_alloc == 0) {
+                    LOG_INFO("Port allocation failed again. Packet dropped.\n");
+                    return false;
+                }
+
+                LOG_INFO("Port allocated successfully.\n");
+            }
 
             nat_entry = nat_table_insert(nat_table, nat_entry_new);
             if(!nat_entry) {
-                LOG_INFO("NAT table inser failed.\n\n");
+                LOG_INFO("NAT table insert failed.\n\n");
                 return false;
             }
         }
@@ -300,17 +321,30 @@ bool handle_packet(uint8_t *buf, struct nat_table *nat_table, struct int_info *i
     return true;
 }
 
-uint16_t get_free_port(struct nat_table *nat_table, uint16_t *port_cntr) {
+bool cond_time(struct nat_entry entry, uint64_t data) {
+    return data - entry.alloc_time >= nat_table_entry_min_lifetime;
+}
+
+uint16_t get_free_port(nat_table *nat_table, uint16_t *port_cntr) {
+    uint16_t init_val;
+
+    init_val = *port_cntr;
+
     (*port_cntr)++;
 
     if(*port_cntr < nat_port_range_start || *port_cntr > nat_port_range_end) {
         *port_cntr = nat_port_range_start;
     }
 
-    while(nat_table_get_by_alloc(nat_table, *port_cntr)) {
+    while(nat_table_get_by_alloc(nat_table, htons(*port_cntr))) {
         (*port_cntr)++;
+
         if(*port_cntr > nat_port_range_end) {
             *port_cntr = nat_port_range_start;
+        }
+
+        if(*port_cntr == init_val) {
+            return 0;
         }
     }
 

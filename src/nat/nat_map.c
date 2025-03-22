@@ -100,6 +100,53 @@ struct nat_entry *nat_map_find(nat_map *map, size_t index, uint64_t data, nat_ma
     return NULL;
 }
 
+bool nat_map_remove_if(nat_map *map, uint64_t data, nat_map_find_condition condition, nat_map_free_callback free_callback) {
+    size_t i;
+    bool removed_any;
+
+    struct nat_node *node;
+    struct nat_node *node_prev;
+    struct nat_node *node_temp;
+
+    if(map == NULL || condition == NULL) {
+        return false;
+    }
+
+    removed_any = 0;
+
+    for(i = 0; i < map->size; i++) {
+        node = map->node_arr[i];
+        node_prev = NULL;
+
+        while(node != NULL) {
+            if(!condition(*node->entry, data)) {
+                node_prev = node;
+                node = node->next;
+                continue;
+            }
+
+            if(node_prev != NULL) {
+                node_prev->next = node->next;
+            } else {
+                map->node_arr[i] = node->next;
+            }
+
+            node_temp = node->next;
+
+            if(free_callback != NULL) {
+                free_callback(node->entry);
+            }
+            free(node);
+
+            node = node_temp;
+
+            removed_any = true;
+        }
+    }
+
+    return removed_any;
+}
+
 void nat_map_free(nat_map *map, nat_map_free_callback free_callback) {
     size_t i;
 

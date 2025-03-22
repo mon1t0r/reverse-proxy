@@ -114,12 +114,26 @@ struct nat_entry *nat_table_get_by_alloc(nat_table *table, uint16_t port_alloc) 
     return nat_map_find(table->alloc_to_src_map, index, port_alloc, &cond_alloc_to_src);
 }
 
+bool nat_table_remove_if(nat_table *table, uint64_t data, nat_table_remove_condition condition) {
+    bool result;
+
+    if(table == NULL || condition == NULL) {
+        return false;
+    }
+
+    /* Two calls must return the same value, otherwise the table data is damaged */
+    result = nat_map_remove_if(table->src_to_alloc_map, data, condition, NULL);
+    result &= nat_map_remove_if(table->alloc_to_src_map, data, condition, (nat_map_free_callback) &free);
+
+    return result;
+}
+
 void nat_table_free(nat_table *table) {
     if(table == NULL) {
         return;
     }
 
-    nat_map_free(table->src_to_alloc_map, (nat_map_free_callback) &free);
+    nat_map_free(table->src_to_alloc_map, NULL);
     nat_map_free(table->alloc_to_src_map, (nat_map_free_callback) &free);
 
     free(table);

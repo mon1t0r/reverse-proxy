@@ -1,5 +1,5 @@
 CC:=gcc
-CFLAGS:=-Iinclude/ -Werror -Wall
+CFLAGS:=-Iinclude/ -Werror -Wall -m64 -g
 LDLIBS:=
 
 TARGET:=reverse_proxy
