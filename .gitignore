@@ -53,3 +53,7 @@ dkms.conf
 
 # Main executable
 reverse_proxy
+
+# clangd entries
+.cache/
+compile_commands.json
