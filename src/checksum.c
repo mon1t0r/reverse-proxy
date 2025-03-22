@@ -1,4 +1,4 @@
-#include "include/checksum.h"
+#include "checksum.h"
 
 uint16_t recompute_checksum_16(uint16_t old_sum, uint16_t old_val, uint16_t new_val) {
     uint32_t sum;

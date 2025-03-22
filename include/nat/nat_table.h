@@ -12,7 +12,16 @@ struct nat_entry {
     time_t alloc_time;
 };
 
-struct nat_table;
+struct nat_node {
+    struct nat_entry *entry;
+    struct nat_node *next;
+};
+
+struct nat_table {
+    size_t size;
+    struct nat_node **src_to_alloc_map;
+    struct nat_node **alloc_to_src_map;
+};
 
 struct nat_table *nat_table_alloc(size_t size);
 

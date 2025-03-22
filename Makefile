@@ -1,31 +1,30 @@
-CC=gcc
-CFLAGS=-Werror -Wall -pedantic -std=c99
-LDLIBS=
-OUTPUT=reverse_proxy
+CC:=gcc
+CFLAGS:=-Iinclude/ -Werror -Wall
+LDLIBS:=
+
+TARGET:=reverse_proxy
+
+SRCDIR:=src
+OBJDIR:=obj
+
+SRCS:=$(wildcard $(SRCDIR)/*.c) $(wildcard $(SRCDIR)/*/*.c)
+OBJS:=$(SRCS:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+
+rm:=rm -rf
+mkdir:=mkdir -p
 
 .PHONY: all clean
 
-all: $(OUTPUT)
+all: $(TARGET)
 
-$(OUTPUT): main.o nat_table.o checksum.o network_layer.o transport_layer.o
-	cppcheck --enable=performance unusedFunction --error-exitcode=1 --check-level=exhaustive *c
+$(TARGET): $(OBJS)
+	cppcheck --enable=performance unusedFunction --error-exitcode=1 --check-level=exhaustive $(SRCS)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
-main.o: main.c
-	$(CC) $(CFLAGS) -c $^ $(LDLIBS) -o $@
-
-nat_table.o: nat_table.c
-	$(CC) $(CFLAGS) -c $^ $(LDLIBS) -o $@
-
-checksum.o: checksum.c
-	$(CC) $(CFLAGS) -c $^ $(LDLIBS) -o $@
-
-network_layer.o: network_layer.c
-	$(CC) $(CFLAGS) -c $^ $(LDLIBS) -o $@
-
-transport_layer.o: transport_layer.c
+$(OBJDIR)/%.o : $(SRCDIR)/%.c
+	@$(mkdir) $(@D)
 	$(CC) $(CFLAGS) -c $^ $(LDLIBS) -o $@
 
 clean:
-	rm -rf *.o $(OUTPUT)
+	@$(rm) $(OBJDIR) $(TARGET)
 

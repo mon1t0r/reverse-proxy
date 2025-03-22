@@ -1,6 +1,6 @@
 #include <netinet/ip.h>
 
-#include "include/network_layer.h"
+#include "network_layer.h"
 
 uint8_t map_network_header(uint8_t *buf, struct net_hdr_map *net_hdr_map) {
     struct iphdr *iphdr;

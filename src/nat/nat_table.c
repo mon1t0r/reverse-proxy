@@ -2,18 +2,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "include/nat_table.h"
-
-struct nat_node {
-    struct nat_entry *entry;
-    struct nat_node *next;
-};
-
-struct nat_table {
-    size_t size;
-    struct nat_node **src_to_alloc_map;
-    struct nat_node **alloc_to_src_map;
-};
+#include "nat/nat_table.h"
 
 bool map_insert(struct nat_node **map, struct nat_entry *entry, size_t index);
 void map_free(struct nat_node **map, size_t size);

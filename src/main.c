@@ -11,10 +11,10 @@
 #include <netpacket/packet.h>
 #include <arpa/inet.h>
 
-#include "include/nat_table.h"
-#include "include/checksum.h"
-#include "include/network_layer.h"
-#include "include/transport_layer.h"
+#include "nat/nat_table.h"
+#include "checksum.h"
+#include "network_layer.h"
+#include "transport_layer.h"
 
 #define ENABLE_LOG_INFO
 /*#define ENABLE_LOG_DEBUG*/
