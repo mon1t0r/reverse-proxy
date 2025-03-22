@@ -71,8 +71,8 @@ uint16_t get_free_port(struct nat_table *nat_table, uint16_t *port_cntr);
 
 int main() {
     uint8_t *buf;
-    struct nat_table *nat_table;
     uint16_t port_cntr;
+    struct nat_table *nat_table;
 
     struct int_info int_info;
     int socket_fd;
@@ -82,8 +82,13 @@ int main() {
     ssize_t buf_len;
 
     buf = (uint8_t *) malloc(packet_buf_size * sizeof(uint8_t));
-    nat_table = nat_table_alloc(nat_table_size);
     port_cntr = nat_port_range_start;
+
+    nat_table = nat_table_alloc(nat_table_size);
+    if(nat_table == NULL) {
+        LOG_INFO("Failed to create NAT table.");
+        exit(EXIT_FAILURE);
+    }
 
     socket_fd = create_socket(&int_info);
 
