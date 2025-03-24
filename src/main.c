@@ -7,7 +7,6 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <net/ethernet.h>
-#include <netinet/ip.h>
 #include <netpacket/packet.h>
 #include <arpa/inet.h>
 
@@ -273,8 +272,11 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
         *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
         *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
 
-        *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
-        *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
+        /* TCP pseudo header */
+        if(*net_hdr_map.next_proto == 6) {
+            *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+            *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
+        }
 
         *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum, *trans_hdr_map.port_src, nat_entry->port_alloc);
         *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, htons(dest_port));
@@ -303,8 +305,11 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
         *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
         *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
 
-        *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
-        *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
+        /* TCP pseudo header */
+        if(*net_hdr_map.next_proto == 6) {
+            *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+            *trans_hdr_map.checksum = recompute_checksum_32(*trans_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
+        }
 
         *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum, *trans_hdr_map.port_src, htons(listen_port));
         *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum, *trans_hdr_map.port_dst, nat_entry->port_src);
