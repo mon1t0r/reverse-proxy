@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <net/if.h>
+#include <linux/if.h>
 #include <net/ethernet.h>
 #include <netpacket/packet.h>
 #include <arpa/inet.h>
@@ -22,13 +22,13 @@
 #ifdef ENABLE_LOG_INFO
 #define LOG_INFO(...) printf(__VA_ARGS__)
 #else
-#define LOG_INFO(format, ...)
+#define LOG_INFO(...)
 #endif
 
 #ifdef ENABLE_LOG_DEBUG
 #define LOG_DEBUG(...) printf(__VA_ARGS__)
 #else
-#define LOG_DEBUG(format, ...)
+#define LOG_DEBUG(...)
 #endif
 
 #define INTERFACE_NAME "eno1"
@@ -215,7 +215,9 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
     struct nat_entry *nat_entry;
     struct nat_entry nat_entry_new;
 
+#ifdef ENABLE_LOG_INFO
     struct in_addr ip_addr;
+#endif
 
     net_len = map_network_header(buf, &net_hdr_map);
     if(net_len == 0) {
@@ -278,10 +280,12 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
             }
         }
 
+#ifdef ENABLE_LOG_INFO
         ip_addr.s_addr = *net_hdr_map.addr_src;
         LOG_INFO("|-client addr: %s\n", inet_ntoa(ip_addr));
         LOG_INFO("|-client port: %u\n", ntohs(*trans_hdr_map.port_src));
         LOG_INFO("|-alloc port: %u\n", ntohs(nat_entry->port_alloc));
+#endif
 
         *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
         *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_dst, DEST_IP);
@@ -311,10 +315,12 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
             return false;
         }
 
+#ifdef ENABLE_LOG_INFO
         ip_addr.s_addr = nat_entry->addr_src;
         LOG_INFO("|-client addr: %s\n", inet_ntoa(ip_addr));
         LOG_INFO("|-client port: %u\n", ntohs(nat_entry->port_src));
         LOG_INFO("|-alloc port: %u\n", ntohs(nat_entry->port_alloc));
+#endif
 
         *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
         *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
