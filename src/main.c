@@ -15,7 +15,8 @@
 #include "network_layer.h"
 #include "transport_layer.h"
 
-#define ENABLE_LOG_INFO
+/* Uncomment to enable packet logging */
+/*#define ENABLE_LOG_INFO*/
 /*#define ENABLE_LOG_DEBUG*/
 
 #ifdef ENABLE_LOG_INFO
@@ -33,15 +34,27 @@
 #define INTERFACE_NAME "eno1"
 
 enum {
+    /* Packet buffer size */
     packet_buf_size = 65536,
 
+    /* NAT table array size (does not limit max NAT entries count) */
     nat_table_size = 50,
+
+    /* Time, after last packet corresponding to a NAT entry,
+     * after which the entry can be removed */
     nat_table_entry_min_lifetime = 5 * 60,
+
+    /* Port range start, that can be used for NAT */
     nat_port_range_start = 49160,
+
+    /* Port range end, that can be used for NAT */
     nat_port_range_end = 49190,
 
+    /* Port, on which proxy is listening for incoming packets */
     listen_port = 52880,
 
+    /* Destination L2 address. Can be either address of the target host,
+     * or address of the default gateway */
     dest_mac_1 = 0x74,
     dest_mac_2 = 0xFE,
     dest_mac_3 = 0xCE,
@@ -49,6 +62,7 @@ enum {
     dest_mac_5 = 0x87,
     dest_mac_6 = 0x11,
 
+    /* Destination L3 address */
     dest_ip_1 = 146,
     dest_ip_2 = 190,
     dest_ip_3 = 62,
@@ -105,7 +119,7 @@ int main() {
     addr.sll_addr[4] = dest_mac_5;
     addr.sll_addr[5] = dest_mac_6;
 
-    LOG_INFO("The proxy is listening on port %d...\n\n", listen_port);
+    printf("The proxy is listening on port %d...\n\n", listen_port);
 
     while ((buf_len = recv(socket_fd, buf, packet_buf_size, 0)) > 0) {
         LOG_DEBUG("Packet\n");
