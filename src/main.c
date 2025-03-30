@@ -42,12 +42,12 @@ enum {
 
     listen_port = 52880,
 
-    gateway_mac_1 = 0x74,
-    gateway_mac_2 = 0xFE,
-    gateway_mac_3 = 0xCE,
-    gateway_mac_4 = 0x8C,
-    gateway_mac_5 = 0x87,
-    gateway_mac_6 = 0x11,
+    dest_mac_1 = 0x74,
+    dest_mac_2 = 0xFE,
+    dest_mac_3 = 0xCE,
+    dest_mac_4 = 0x8C,
+    dest_mac_5 = 0x87,
+    dest_mac_6 = 0x11,
 
     dest_ip_1 = 146,
     dest_ip_2 = 190,
@@ -98,12 +98,12 @@ int main() {
     addr.sll_protocol = htons(ETH_P_IP);
     addr.sll_ifindex = int_info.index;
     addr.sll_halen = 6;
-    addr.sll_addr[0] = gateway_mac_1;
-    addr.sll_addr[1] = gateway_mac_2;
-    addr.sll_addr[2] = gateway_mac_3;
-    addr.sll_addr[3] = gateway_mac_4;
-    addr.sll_addr[4] = gateway_mac_5;
-    addr.sll_addr[5] = gateway_mac_6;
+    addr.sll_addr[0] = dest_mac_1;
+    addr.sll_addr[1] = dest_mac_2;
+    addr.sll_addr[2] = dest_mac_3;
+    addr.sll_addr[3] = dest_mac_4;
+    addr.sll_addr[4] = dest_mac_5;
+    addr.sll_addr[5] = dest_mac_6;
 
     LOG_INFO("The proxy is listening on port %d...\n\n", listen_port);
 
@@ -181,12 +181,12 @@ int create_socket(struct int_info *int_info) {
 
     addr_net.s_addr = int_info->addr_net;
 
-    LOG_INFO("Interface\n");
-    LOG_INFO("|-name %s\n", INTERFACE_NAME);
-    LOG_INFO("|-index %d\n", int_info->index);
-    LOG_INFO("|-mac %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1], addr_link[2], addr_link[3], addr_link[4], addr_link[5]);
-    LOG_INFO("|-ip %s\n", inet_ntoa(addr_net));
-    LOG_INFO("Socket initialized successfully\n\n");
+    printf("Interface\n");
+    printf("|-name %s\n", INTERFACE_NAME);
+    printf("|-index %d\n", int_info->index);
+    printf("|-mac %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1], addr_link[2], addr_link[3], addr_link[4], addr_link[5]);
+    printf("|-ip %s\n", inet_ntoa(addr_net));
+    printf("Socket initialized successfully\n\n");
 
     return socket_fd;
 }
