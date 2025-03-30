@@ -25,3 +25,5 @@ Kernel processing can be enabled back by running
 ```
 sudo ./shell/enable_tcp_reply.sh
 ```
+
+`iptables` needs to be installed to execute the script.
