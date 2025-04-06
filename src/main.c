@@ -35,23 +35,18 @@
 
 enum {
     /* Packet buffer size */
-    packet_buf_size = 65536,
-
+    packet_buf_size =              65536,
     /* NAT table array size (does not limit max NAT entries count) */
-    nat_table_size = 50,
-
+    nat_table_size =               50,
     /* Time, after last packet corresponding to a NAT entry,
      * after which the entry can be removed */
     nat_table_entry_min_lifetime = 5 * 60,
-
     /* Port range start, that can be used for NAT */
-    nat_port_range_start = 49160,
-
+    nat_port_range_start =         49160,
     /* Port range end, that can be used for NAT */
-    nat_port_range_end = 49190,
-
+    nat_port_range_end =           49190,
     /* Port, on which proxy is listening for incoming packets */
-    listen_port = 52880,
+    listen_port =                  52880,
 
     /* Destination L2 address. Can be either address of the target host,
      * or address of the default gateway */
@@ -84,7 +79,7 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
 bool cond_time(struct nat_entry entry, uint64_t data);
 uint16_t get_free_port(nat_table *nat_table, uint16_t *port_cntr);
 
-int main() {
+int main(void) {
     uint8_t *buf;
     uint16_t port_cntr;
     nat_table *nat_table;
