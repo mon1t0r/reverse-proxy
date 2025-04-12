@@ -65,8 +65,10 @@ struct nat_entry *nat_table_insert(nat_table *table, struct nat_entry entry) {
     }
     memcpy(entry_new, &entry, sizeof(struct nat_entry));
 
-    src_hash = hash_src(entry.port_src, entry.addr_src, nat_map_get_size(table->src_to_alloc_map));
-    alloc_hash = hash_alloc(entry.port_alloc, nat_map_get_size(table->alloc_to_src_map));
+    src_hash = hash_src(entry.port_src, entry.addr_src,
+                        nat_map_get_size(table->src_to_alloc_map));
+    alloc_hash = hash_alloc(entry.port_alloc,
+                            nat_map_get_size(table->alloc_to_src_map));
 
     if(!nat_map_insert(table->src_to_alloc_map, entry_new, src_hash)) {
         goto err;
@@ -84,7 +86,8 @@ err:
 }
 
 /* Do not change values of the returned reference except timestamp. */
-struct nat_entry *nat_table_get_by_src(nat_table *table, uint16_t port_src, uint32_t addr_src) {
+struct nat_entry *nat_table_get_by_src(nat_table *table, uint16_t port_src,
+                                       uint32_t addr_src) {
     size_t index;
     uint64_t data;
 
@@ -111,10 +114,12 @@ struct nat_entry *nat_table_get_by_alloc(nat_table *table, uint16_t port_alloc) 
 
     index = hash_alloc(port_alloc, nat_map_get_size(table->alloc_to_src_map));
 
-    return nat_map_find(table->alloc_to_src_map, index, port_alloc, &cond_alloc_to_src);
+    return nat_map_find(table->alloc_to_src_map, index, port_alloc,
+                        &cond_alloc_to_src);
 }
 
-bool nat_table_remove_if(nat_table *table, uint64_t data, nat_table_remove_condition condition) {
+bool nat_table_remove_if(nat_table *table, uint64_t data,
+                         nat_table_remove_condition condition) {
     bool result;
 
     if(table == NULL || condition == NULL) {
@@ -123,7 +128,8 @@ bool nat_table_remove_if(nat_table *table, uint64_t data, nat_table_remove_condi
 
     /* Two calls must return the same value, otherwise the table data is damaged */
     result = nat_map_remove_if(table->src_to_alloc_map, data, condition, NULL);
-    result &= nat_map_remove_if(table->alloc_to_src_map, data, condition, (nat_map_free_callback) &free);
+    result &= nat_map_remove_if(table->alloc_to_src_map, data, condition,
+                                (nat_map_free_callback) &free);
 
     return result;
 }

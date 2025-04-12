@@ -3,12 +3,12 @@
 
 #include "transport_layer.h"
 
-uint8_t map_transport_header(uint8_t *buf, uint8_t proto, struct trans_hdr_map *trans_hdr_map) {
+uint8_t map_transport_header(uint8_t *buf, uint8_t proto,
+                             struct trans_hdr_map *trans_hdr_map) {
     struct tcphdr *tcphdr;
     struct udphdr *udphdr;
 
-    /* TCP protocol */
-    if(proto == 6) {
+    if(proto == trans_proto_tcp) {
         tcphdr = (struct tcphdr *) buf;
 
         trans_hdr_map->port_src = &tcphdr->source;
@@ -18,8 +18,7 @@ uint8_t map_transport_header(uint8_t *buf, uint8_t proto, struct trans_hdr_map *
         return tcphdr->doff;
     }
 
-    /* UDP protocol */
-    if(proto == 17) {
+    if(proto == trans_proto_udp) {
         udphdr = (struct udphdr *) buf;
 
         trans_hdr_map->port_src = &udphdr->source;
