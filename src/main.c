@@ -200,7 +200,7 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table,
                                 *net_hdr_map.addr_dst, DEST_IP);
 
         /* TCP pseudo header */
-        if(*net_hdr_map.next_proto == 6) {
+        if(*net_hdr_map.next_proto == trans_proto_tcp) {
             *trans_hdr_map.checksum = recompute_checksum_32(
                 *trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
             *trans_hdr_map.checksum = recompute_checksum_32(
@@ -244,7 +244,7 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table,
                                 *net_hdr_map.addr_dst, nat_entry->addr_src);
 
         /* TCP pseudo header */
-        if(*net_hdr_map.next_proto == 6) {
+        if(*net_hdr_map.next_proto == trans_proto_tcp) {
             *trans_hdr_map.checksum = recompute_checksum_32(
                 *trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
             *trans_hdr_map.checksum = recompute_checksum_32(
@@ -273,43 +273,45 @@ int create_socket(struct int_info *int_info) {
     struct ifreq ifreq;
     struct sockaddr_ll addr;
 
-    uint8_t addr_link[8];
+    uint8_t addr_link[6];
     struct in_addr addr_net;
 
+    /* Create socket */
     if((socket_fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_IP))) < 0) {
         perror("socket()");
         exit(EXIT_FAILURE);
     }
 
+    /* Get interface index */
     memset(&ifreq, 0, sizeof(struct ifreq));
     strncpy(ifreq.ifr_name, INTERFACE_NAME, IFNAMSIZ - 1);
-
     if(ioctl(socket_fd, SIOCGIFINDEX, &ifreq) < 0) {
         perror("ioctl(SIOCGIFINDEX)");
         exit(EXIT_FAILURE);
     }
-
     int_info->index = ifreq.ifr_ifindex;
 
+    /* Get interface hardware address */
     if(ioctl(socket_fd, SIOCGIFHWADDR, &ifreq) < 0) {
         perror("ioctl(SIOCGIFHWADDR)");
         exit(EXIT_FAILURE);
     }
+    memcpy(addr_link, &ifreq.ifr_hwaddr.sa_data, sizeof(addr_link));
 
-    memcpy(addr_link, &ifreq.ifr_hwaddr.sa_data, 8 * sizeof(uint8_t));
-
+    /* Get interface address */
     if(ioctl(socket_fd, SIOCGIFADDR, &ifreq) < 0) {
         perror("ioctl(SIOCGIFADDR)");
         exit(EXIT_FAILURE);
     }
-
     int_info->addr_net = ((struct sockaddr_in *) &ifreq.ifr_addr)->sin_addr.s_addr;
 
+    /* Fill sockaddr_ll structure */
     memset(&addr, 0, sizeof(addr));
     addr.sll_family = AF_PACKET;
     addr.sll_protocol = htons(ETH_P_IP);
     addr.sll_ifindex = int_info->index;
 
+    /* Bind interface */
     if(bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
         perror("bind()");
         exit(EXIT_FAILURE);
@@ -330,6 +332,8 @@ int create_socket(struct int_info *int_info) {
 
 int main(void) {
     uint8_t *buf;
+    ssize_t buf_len;
+
     uint16_t port_cntr;
     nat_table *nat_table;
 
@@ -337,8 +341,6 @@ int main(void) {
     int socket_fd;
 
     struct sockaddr_ll addr;
-
-    ssize_t buf_len;
 
     buf = malloc(packet_buf_size * sizeof(uint8_t));
     port_cntr = nat_port_range_start;
@@ -356,6 +358,7 @@ int main(void) {
     addr.sll_protocol = htons(ETH_P_IP);
     addr.sll_ifindex = int_info.index;
     addr.sll_halen = 6;
+    /* TODO: Change MAC when sending to client ? */
     addr.sll_addr[0] = dest_mac_1;
     addr.sll_addr[1] = dest_mac_2;
     addr.sll_addr[2] = dest_mac_3;
@@ -365,7 +368,7 @@ int main(void) {
 
     printf("The proxy is listening on port %d...\n\n", listen_port);
 
-    while((buf_len = recv(socket_fd, buf, packet_buf_size, 0)) > 0) {
+    while((buf_len = recv(socket_fd, buf, packet_buf_size * sizeof(uint8_t), 0)) > 0) {
         LOG_DEBUG("Packet\n");
         LOG_DEBUG("|-length %ld\n", buf_len);
 
