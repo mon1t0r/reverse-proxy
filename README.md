@@ -1,10 +1,12 @@
 ## Overview
-This project is a NAT / reverse proxy, that works on Layer 3 and Layer 4 of the ISO/OSI model.
+This project is an implementation of NAT / reverse proxy, that works
+on Layer 3 and Layer 4 of the ISO/OSI model.
 
-The application listens for TCP and UDP packets on the configured port, forwards them to the 
-destination host and port, and then receives and forwards response to the requesting client.
-Therefore, the requesting client must send the data with the destination ip and port of the proxy.
-Higher level protocols, which check the destination address (e.g. HTTPS) will not work correctly
+The application listens for incoming TCP and UDP packets on the configured port, forwards them to the 
+destination host, and then receives and forwards response to the requesting client.
+
+Therefore, the requesting client must send the data with the destination IP and port of the proxy.
+Higher layer protocols, which check the destination address (e.g. HTTPS) will not work correctly
 with the current implementation, as the proxy operates only on L3/L4 and does not modify any TCP/UDP
 payload.
 
@@ -16,11 +18,16 @@ make
 cppcheck
 ```
 
-### Building
+### Build
 ```
 git clone https://github.com/mon1t0r/reverse-proxy
-./reverse-proxy
+cd reverse-proxy
 make
+```
+
+### Run
+```
+sudo ./reverse-proxy
 ```
 
 ## Important info
@@ -37,3 +44,7 @@ sudo ./shell/enable_tcp_reply.sh
 ```
 
 `iptables` needs to be installed to execute the script.
+
+## TODO
+ - review and refactor L2 header creation while forwarding packets;
+ - configuration from command line arguments/config file.
