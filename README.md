@@ -46,5 +46,5 @@ sudo ./shell/enable_tcp_reply.sh
 `iptables` needs to be installed to execute the script.
 
 ## TODO
- - review and refactor L2 header creation while forwarding packets;
+ - solve the problem with IP packets fragmentation;
  - configuration from command line arguments/config file.

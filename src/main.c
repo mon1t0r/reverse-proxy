@@ -271,12 +271,16 @@ void create_sockets(int *socket_rx_fd, int *socket_tx_fd, struct int_info *int_i
     uint8_t addr_link[6];
 
     /* Create receive socket */
+    /* TODO: AF_PACKET sockets do not reassamble IP fragments, implement 
+     * AF_INET usage */
     if((*socket_rx_fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_IP))) < 0) {
         perror("socket()");
         exit(EXIT_FAILURE);
     }
 
     /* Create transmit socket */
+    /* TODO: AF_INET sockets with IP_HDRINCL option set do not reassamble IP
+     * fragments, implement without IP_HDRINCL */
     if((*socket_tx_fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
         perror("socket()");
         exit(EXIT_FAILURE);
