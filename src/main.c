@@ -9,11 +9,14 @@
 #include <net/ethernet.h>
 #include <netpacket/packet.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <asm-generic/socket.h>
 
 #include "nat/nat_table.h"
 #include "checksum.h"
 #include "network_layer.h"
 #include "transport_layer.h"
+
 
 /* Uncomment to enable packet logging */
 /*#define ENABLE_LOG_INFO*/
@@ -47,15 +50,6 @@ enum {
     nat_port_range_end           = 49190,
     /* Port, on which proxy is listening for incoming packets */
     listen_port                  = 52880,
-
-    /* Destination L2 address. Can be either address of the target host,
-     * or address of the default gateway */
-    dest_mac_1                   = 0x74,
-    dest_mac_2                   = 0xFE,
-    dest_mac_3                   = 0xCE,
-    dest_mac_4                   = 0x8C,
-    dest_mac_5                   = 0x87,
-    dest_mac_6                   = 0x11,
 
     /* Destination L3 address */
     dest_ip_1                    = 146,
@@ -268,79 +262,98 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table,
     return true;
 }
 
-int create_socket(struct int_info *int_info) {
-    int socket_fd;
+void create_sockets(int *socket_rx_fd, int *socket_tx_fd, struct int_info *int_info) {
+    int sockoptval;
+
     struct ifreq ifreq;
     struct sockaddr_ll addr;
 
     uint8_t addr_link[6];
-    struct in_addr addr_net;
 
-    /* Create socket */
-    if((socket_fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_IP))) < 0) {
+    /* Create receive socket */
+    if((*socket_rx_fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_IP))) < 0) {
         perror("socket()");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Create transmit socket */
+    if((*socket_tx_fd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
+        perror("socket()");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Enable IP_HDRINCL on transmit socket */
+    sockoptval = 1;
+    if(setsockopt(*socket_tx_fd, IPPROTO_IP, IP_HDRINCL, &sockoptval,
+                  sizeof(sockoptval)) < 0) {
+        perror("setsockopt()");
         exit(EXIT_FAILURE);
     }
 
     /* Get interface index */
     memset(&ifreq, 0, sizeof(struct ifreq));
     strncpy(ifreq.ifr_name, INTERFACE_NAME, IFNAMSIZ - 1);
-    if(ioctl(socket_fd, SIOCGIFINDEX, &ifreq) < 0) {
+    if(ioctl(*socket_rx_fd, SIOCGIFINDEX, &ifreq) < 0) {
         perror("ioctl(SIOCGIFINDEX)");
         exit(EXIT_FAILURE);
     }
     int_info->index = ifreq.ifr_ifindex;
 
     /* Get interface hardware address */
-    if(ioctl(socket_fd, SIOCGIFHWADDR, &ifreq) < 0) {
+    if(ioctl(*socket_rx_fd, SIOCGIFHWADDR, &ifreq) < 0) {
         perror("ioctl(SIOCGIFHWADDR)");
         exit(EXIT_FAILURE);
     }
     memcpy(addr_link, &ifreq.ifr_hwaddr.sa_data, sizeof(addr_link));
 
     /* Get interface address */
-    if(ioctl(socket_fd, SIOCGIFADDR, &ifreq) < 0) {
+    if(ioctl(*socket_rx_fd, SIOCGIFADDR, &ifreq) < 0) {
         perror("ioctl(SIOCGIFADDR)");
         exit(EXIT_FAILURE);
     }
     int_info->addr_net = ((struct sockaddr_in *) &ifreq.ifr_addr)->sin_addr.s_addr;
 
-    /* Fill sockaddr_ll structure */
+    /* Fill sockaddr_ll structure for receive socket */
     memset(&addr, 0, sizeof(addr));
     addr.sll_family = AF_PACKET;
     addr.sll_protocol = htons(ETH_P_IP);
     addr.sll_ifindex = int_info->index;
 
-    /* Bind interface */
-    if(bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-        perror("bind()");
+    /* Bind receive socket to interface */
+    if(bind(*socket_rx_fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        perror("bind() - rx");
         exit(EXIT_FAILURE);
     }
 
-    addr_net.s_addr = int_info->addr_net;
+    /* Bind transmit socket to interface */
+    if(setsockopt(*socket_tx_fd, SOL_SOCKET, SO_BINDTODEVICE, &ifreq,
+                  sizeof(ifreq)) < 0) {
+        perror("setsockopt()");
+        exit(EXIT_FAILURE);
+    }
 
-    printf("Interface\n");
-    printf("|-name %s\n", INTERFACE_NAME);
-    printf("|-index %d\n", int_info->index);
-    printf("|-mac %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1], addr_link[2],
-           addr_link[3], addr_link[4], addr_link[5]);
-    printf("|-ip %s\n", inet_ntoa(addr_net));
-    printf("Socket initialized successfully\n\n");
-
-    return socket_fd;
+    printf("Binded to interface\n");
+    printf("|-name   %s\n", INTERFACE_NAME);
+    printf("|-index  %d\n", int_info->index);
+    printf("|-IPv4   %s\n", inet_ntoa(((struct sockaddr_in *)
+                                     &ifreq.ifr_addr)->sin_addr));
+    printf("|-MAC    %x:%x:%x:%x:%x:%x\n", addr_link[0], addr_link[1],
+           addr_link[2], addr_link[3], addr_link[4], addr_link[5]);
+    printf("Sockets initialized successfully\n\n");
 }
 
 int main(void) {
     uint8_t *buf;
     ssize_t buf_len;
+    struct sockaddr_in dst_addr;
+    struct net_hdr_map net_hdr_map;
 
     uint16_t port_cntr;
     nat_table *nat_table;
 
     struct int_info int_info;
-    int socket_fd;
-
-    struct sockaddr_ll addr;
+    int socket_rx_fd;
+    int socket_tx_fd;
 
     buf = malloc(packet_buf_size * sizeof(uint8_t));
     port_cntr = nat_port_range_start;
@@ -351,24 +364,11 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
 
-    socket_fd = create_socket(&int_info);
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sll_family = AF_PACKET;
-    addr.sll_protocol = htons(ETH_P_IP);
-    addr.sll_ifindex = int_info.index;
-    addr.sll_halen = 6;
-    /* TODO: Change MAC when sending to client ? */
-    addr.sll_addr[0] = dest_mac_1;
-    addr.sll_addr[1] = dest_mac_2;
-    addr.sll_addr[2] = dest_mac_3;
-    addr.sll_addr[3] = dest_mac_4;
-    addr.sll_addr[4] = dest_mac_5;
-    addr.sll_addr[5] = dest_mac_6;
+    create_sockets(&socket_rx_fd, &socket_tx_fd, &int_info);
 
     printf("The proxy is listening on port %d...\n\n", listen_port);
 
-    while((buf_len = recv(socket_fd, buf, packet_buf_size * sizeof(uint8_t), 0)) > 0) {
+    while((buf_len = recv(socket_rx_fd, buf, packet_buf_size * sizeof(uint8_t), 0)) > 0) {
         LOG_DEBUG("Packet\n");
         LOG_DEBUG("|-length %ld\n", buf_len);
 
@@ -378,8 +378,19 @@ int main(void) {
 
         LOG_INFO("Forwarding packet... ");
 
-        if(sendto(socket_fd, buf, buf_len, 0, (struct sockaddr *) &addr,
-                  sizeof(addr)) < 0) {
+        if(map_network_header(buf, &net_hdr_map) == 0) {
+            LOG_INFO("Failed.\n\n");
+            continue;
+        }
+
+        memset(&dst_addr, 0, sizeof(dst_addr));
+        dst_addr.sin_family = AF_INET;
+        dst_addr.sin_addr.s_addr = *net_hdr_map.addr_dst;
+
+        if(sendto(socket_tx_fd, buf, buf_len, 0, (struct sockaddr *) &dst_addr,
+                  sizeof(dst_addr)) < 0) {
+            printf("msg len: %ld\n", buf_len);
+            perror("send()");
             LOG_INFO("Failed.\n\n");
             continue;
         }
@@ -387,7 +398,7 @@ int main(void) {
         LOG_INFO("Success.\n\n");
     }
 
-    close(socket_fd);
+    close(socket_rx_fd);
     free(buf);
     nat_table_free(nat_table);
 
