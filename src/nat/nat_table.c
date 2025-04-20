@@ -11,8 +11,8 @@ struct nat_table {
     nat_map *alloc_to_src_map;
 };
 
-bool cond_src_to_alloc(struct nat_entry entry, uint64_t data);
-bool cond_alloc_to_src(struct nat_entry entry, uint64_t data);
+bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr);
+bool cond_alloc_to_src(struct nat_entry entry, const void *data_ptr);
 
 size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size);
 size_t hash_alloc(uint16_t dst_port, size_t size);
@@ -101,7 +101,7 @@ struct nat_entry *nat_table_get_by_src(nat_table *table, uint16_t port_src,
     data <<= 32;
     data |= addr_src;
 
-    return nat_map_find(table->src_to_alloc_map, index, data, &cond_src_to_alloc);
+    return nat_map_find(table->src_to_alloc_map, index, &data, &cond_src_to_alloc);
 }
 
 /* Do not change values of the returned reference except timestamp. */
@@ -114,11 +114,11 @@ struct nat_entry *nat_table_get_by_alloc(nat_table *table, uint16_t port_alloc) 
 
     index = hash_alloc(port_alloc, nat_map_get_size(table->alloc_to_src_map));
 
-    return nat_map_find(table->alloc_to_src_map, index, port_alloc,
+    return nat_map_find(table->alloc_to_src_map, index, &port_alloc,
                         &cond_alloc_to_src);
 }
 
-bool nat_table_remove_if(nat_table *table, uint64_t data,
+bool nat_table_remove_if(nat_table *table, const void *data_ptr,
                          nat_table_remove_condition condition) {
     bool result;
 
@@ -127,8 +127,8 @@ bool nat_table_remove_if(nat_table *table, uint64_t data,
     }
 
     /* Two calls must return the same value, otherwise the table data is damaged */
-    result = nat_map_remove_if(table->src_to_alloc_map, data, condition, NULL);
-    result &= nat_map_remove_if(table->alloc_to_src_map, data, condition,
+    result = nat_map_remove_if(table->src_to_alloc_map, data_ptr, condition, NULL);
+    result &= nat_map_remove_if(table->alloc_to_src_map, data_ptr, condition,
                                 (nat_map_free_callback) &free);
 
     return result;
@@ -145,18 +145,21 @@ void nat_table_free(nat_table *table) {
     free(table);
 }
 
-bool cond_src_to_alloc(struct nat_entry entry, uint64_t data) {
+bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr) {
+    const uint64_t *nat_data_ptr;
     uint32_t addr_src;
     uint16_t port_src;
 
-    addr_src = data & 0xFFFFFFFF;
-    port_src = data >> 32;
+    nat_data_ptr = data_ptr;
+
+    addr_src = *nat_data_ptr & 0xFFFFFFFF;
+    port_src = *nat_data_ptr >> 32;
 
     return entry.addr_src == addr_src && entry.port_src == port_src;
 }
 
-bool cond_alloc_to_src(struct nat_entry entry, uint64_t data) {
-    return entry.port_alloc == data;
+bool cond_alloc_to_src(struct nat_entry entry, const void *data_ptr) {
+    return entry.port_alloc == *((uint16_t *) data_ptr);
 }
 
 size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size) {
