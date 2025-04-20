@@ -10,7 +10,7 @@ Higher layer protocols, which check the destination address (e.g. HTTPS) will no
 with the current implementation, as the proxy operates only on L3/L4 and does not modify any TCP/UDP
 payload.
 
-## Build from source
+## Build and run
 ### Requirements
 ```
 gcc
@@ -31,7 +31,7 @@ sudo ./reverse-proxy
 ```
 
 ## Important info
-Before using the proxy, make sure the correct port number is specified in the script and run
+Before using the proxy, make sure the correct port numbers are specified in the script and run
 ```
 sudo ./shell/disable_tcp_reply.sh
 ```
@@ -46,5 +46,5 @@ sudo ./shell/enable_tcp_reply.sh
 `iptables` needs to be installed to execute the script.
 
 ## TODO
- - solve the problem with IP packets fragmentation;
+ - solve the problem with IP packets fragmentation (probably use higher level sockets);
  - configuration from command line arguments/config file.
