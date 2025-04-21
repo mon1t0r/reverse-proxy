@@ -82,11 +82,14 @@ bool cond_time(struct nat_entry entry, const void *data_ptr) {
 
     nat_data_ptr = data_ptr;
 
-    return nat_data_ptr->alloc_time - entry.alloc_time >= nat_data_ptr->min_lifetime;
+    return nat_data_ptr->alloc_time - entry.alloc_time >=
+    nat_data_ptr->min_lifetime;
 }
 
-bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info,
-                   const struct proxy_opts *options, uint16_t *port_cntr) {
+/* TODO: Split up and refactor method */
+bool handle_packet(uint8_t *buf, nat_table *nat_table,
+                   struct int_info *int_info, const struct proxy_opts *options,
+                   uint16_t *port_cntr) {
     struct net_hdr_map net_hdr_map;
     uint8_t net_len;
 
@@ -140,28 +143,32 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
             nat_entry_new.port_src = *trans_hdr_map.port_src;
             nat_entry_new.addr_src = *net_hdr_map.addr_src;
             nat_entry_new.alloc_time = time(NULL);
-            nat_entry_new.port_alloc = get_free_port(nat_table, options, port_cntr);
+            nat_entry_new.port_alloc = get_free_port(nat_table, options,
+                                                     port_cntr);
 
             if(nat_entry_new.port_alloc == 0) {
                 LOG_INFO("No free ports left in NAT port range. \
                          NAT table cleanup attempt...\n");
 
                 nat_entry_data.alloc_time = nat_entry_new.alloc_time;
-                nat_entry_data.min_lifetime = options->nat_table_entry_min_lifetime;
+                nat_entry_data.min_lifetime =
+                    options->nat_table_entry_min_lifetime;
                 if(!nat_table_remove_if(nat_table, &nat_entry_data,
                                         &cond_time)) {
-                    LOG_INFO("NAT table cleanup failed: No entries \
-                             removed. Packet dropped.\n");
+                    LOG_INFO("NAT table cleanup failed: No entries"
+                             " removed. Packet dropped.\n");
                     return false;
                 }
 
                 LOG_INFO("Nat table cleanup success. Retrying to \
                          allocate a port...\n");
 
-                nat_entry_new.port_alloc = get_free_port(nat_table, options, port_cntr);
+                nat_entry_new.port_alloc = get_free_port(nat_table, options,
+                                                         port_cntr);
 
                 if(nat_entry_new.port_alloc == 0) {
-                    LOG_INFO("Port allocation failed again. Packet dropped.\n");
+                    LOG_INFO("Port allocation failed again."
+                             " Packet dropped.\n");
                     return false;
                 }
 
@@ -182,23 +189,28 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
         LOG_INFO("|-alloc port: %u\n", ntohs(nat_entry->port_alloc));
 #endif
 
-        *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum,
-                                *net_hdr_map.addr_src, int_info->addr_net);
-        *net_hdr_map.checksum = recompute_checksum_32(*net_hdr_map.checksum,
-                                *net_hdr_map.addr_dst, htonl(options->dest_addr));
+        *net_hdr_map.checksum = recompute_checksum_32(
+            *net_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+        *net_hdr_map.checksum = recompute_checksum_32(
+            *net_hdr_map.checksum, *net_hdr_map.addr_dst,
+            htonl(options->dest_addr));
 
         /* TCP pseudo header */
         if(*net_hdr_map.next_proto == trans_proto_tcp) {
             *trans_hdr_map.checksum = recompute_checksum_32(
-                *trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+                *trans_hdr_map.checksum, *net_hdr_map.addr_src,
+                int_info->addr_net);
             *trans_hdr_map.checksum = recompute_checksum_32(
-                *trans_hdr_map.checksum, *net_hdr_map.addr_dst, htonl(options->dest_addr));
+                *trans_hdr_map.checksum, *net_hdr_map.addr_dst,
+                htonl(options->dest_addr));
         }
 
         *trans_hdr_map.checksum = recompute_checksum_16(
-            *trans_hdr_map.checksum, *trans_hdr_map.port_src, nat_entry->port_alloc);
-        *trans_hdr_map.checksum = recompute_checksum_16(*trans_hdr_map.checksum,
-            *trans_hdr_map.port_dst, htons(options->dest_port));
+            *trans_hdr_map.checksum, *trans_hdr_map.port_src,
+            nat_entry->port_alloc);
+        *trans_hdr_map.checksum = recompute_checksum_16(
+            *trans_hdr_map.checksum, *trans_hdr_map.port_dst,
+            htons(options->dest_port));
 
         *net_hdr_map.addr_src = int_info->addr_net;
         *trans_hdr_map.port_src = nat_entry->port_alloc;
@@ -234,15 +246,19 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
         /* TCP pseudo header */
         if(*net_hdr_map.next_proto == trans_proto_tcp) {
             *trans_hdr_map.checksum = recompute_checksum_32(
-                *trans_hdr_map.checksum, *net_hdr_map.addr_src, int_info->addr_net);
+                *trans_hdr_map.checksum, *net_hdr_map.addr_src,
+                int_info->addr_net);
             *trans_hdr_map.checksum = recompute_checksum_32(
-                *trans_hdr_map.checksum, *net_hdr_map.addr_dst, nat_entry->addr_src);
+                *trans_hdr_map.checksum, *net_hdr_map.addr_dst,
+                nat_entry->addr_src);
         }
 
         *trans_hdr_map.checksum = recompute_checksum_16(
-            *trans_hdr_map.checksum, *trans_hdr_map.port_src, htons(options->listen_port));
+            *trans_hdr_map.checksum, *trans_hdr_map.port_src,
+            htons(options->listen_port));
         *trans_hdr_map.checksum = recompute_checksum_16(
-            *trans_hdr_map.checksum, *trans_hdr_map.port_dst, nat_entry->port_src);
+            *trans_hdr_map.checksum, *trans_hdr_map.port_dst,
+            nat_entry->port_src);
 
         *net_hdr_map.addr_src = int_info->addr_net;
         *trans_hdr_map.port_src = htons(options->listen_port);
@@ -256,7 +272,8 @@ bool handle_packet(uint8_t *buf, nat_table *nat_table, struct int_info *int_info
     return true;
 }
 
-void create_sockets(int *socket_rx_fd, int *socket_tx_fd, struct int_info *int_info) {
+void create_sockets(int *socket_rx_fd, int *socket_tx_fd,
+                    struct int_info *int_info) {
     int sockoptval;
 
     struct ifreq ifreq;
@@ -309,7 +326,8 @@ void create_sockets(int *socket_rx_fd, int *socket_tx_fd, struct int_info *int_i
         perror("ioctl(SIOCGIFADDR)");
         exit(EXIT_FAILURE);
     }
-    int_info->addr_net = ((struct sockaddr_in *) &ifreq.ifr_addr)->sin_addr.s_addr;
+    int_info->addr_net =
+        ((struct sockaddr_in *) &ifreq.ifr_addr)->sin_addr.s_addr;
 
     /* Fill sockaddr_ll structure for receive socket */
     memset(&addr, 0, sizeof(addr));
@@ -373,7 +391,8 @@ int main(int argc, char *argv[]) {
 
     printf("The proxy is listening on port %d...\n\n", options.listen_port);
 
-    while((buf_len = recv(socket_rx_fd, buf, packet_buf_size * sizeof(uint8_t), 0)) > 0) {
+    while((buf_len = recv(socket_rx_fd, buf,
+                          packet_buf_size * sizeof(uint8_t), 0)) > 0) {
         LOG_DEBUG("Packet\n");
         LOG_DEBUG("|-length %ld\n", buf_len);
 

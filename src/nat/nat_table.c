@@ -95,17 +95,20 @@ struct nat_entry *nat_table_get_by_src(nat_table *table, uint16_t port_src,
         return NULL;
     }
 
-    index = hash_src(port_src, addr_src, nat_map_get_size(table->src_to_alloc_map));
+    index = hash_src(port_src, addr_src,
+                     nat_map_get_size(table->src_to_alloc_map));
 
     data = port_src;
     data <<= 32;
     data |= addr_src;
 
-    return nat_map_find(table->src_to_alloc_map, index, &data, &cond_src_to_alloc);
+    return nat_map_find(table->src_to_alloc_map, index, &data,
+                        &cond_src_to_alloc);
 }
 
 /* Do not change values of the returned reference except timestamp. */
-struct nat_entry *nat_table_get_by_alloc(nat_table *table, uint16_t port_alloc) {
+struct nat_entry *nat_table_get_by_alloc(nat_table *table,
+                                         uint16_t port_alloc) {
     size_t index;
 
     if(table == NULL) {
@@ -126,8 +129,10 @@ bool nat_table_remove_if(nat_table *table, const void *data_ptr,
         return false;
     }
 
-    /* Two calls must return the same value, otherwise the table data is damaged */
-    result = nat_map_remove_if(table->src_to_alloc_map, data_ptr, condition, NULL);
+    /* Two calls must return the same value,
+     * otherwise the table data is damaged */
+    result = nat_map_remove_if(table->src_to_alloc_map, data_ptr, condition,
+                               NULL);
     result &= nat_map_remove_if(table->alloc_to_src_map, data_ptr, condition,
                                 (nat_map_free_callback) &free);
 

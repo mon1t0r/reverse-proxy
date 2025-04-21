@@ -87,18 +87,25 @@ struct proxy_opts options_parse(int argc, char *argv[]) {
                 }
                 break;
             case 'l':
-                if(!options_parse_time(optarg, &options.nat_table_entry_min_lifetime)) {
-                    options_error(argv[0], "nat-table-entry-min-lifetime - invalid value");
+                if(!options_parse_time(optarg,
+                                       &options.nat_table_entry_min_lifetime)
+                ) {
+                    options_error(argv[0],
+                                  "nat-table-entry-min-lifetime -"
+                                  " invalid value");
                 }
                 break;
             case 's':
-                if(!options_parse_port(optarg, &options.nat_port_range_start)) {
-                    options_error(argv[0], "nat-port-range-start - invalid value");
+                if(!options_parse_port(optarg,
+                                       &options.nat_port_range_start)) {
+                    options_error(argv[0],
+                                  "nat-port-range-start - invalid value");
                 }
                 break;
             case 'e':
                 if(!options_parse_port(optarg, &options.nat_port_range_end)) {
-                    options_error(argv[0], "nat-port-range-end - invalid value");
+                    options_error(argv[0],
+                                  "nat-port-range-end - invalid value");
                 }
                 break;
             default:

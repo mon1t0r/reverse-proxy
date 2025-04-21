@@ -80,7 +80,8 @@ bool nat_map_insert(nat_map *map, struct nat_entry *entry, size_t index) {
     return true;
 }
 
-struct nat_entry *nat_map_find(nat_map *map, size_t index, const void *data_ptr,
+struct nat_entry *nat_map_find(nat_map *map, size_t index,
+                               const void *data_ptr,
                                nat_map_find_condition condition) {
     struct nat_node *node;
 
@@ -101,7 +102,8 @@ struct nat_entry *nat_map_find(nat_map *map, size_t index, const void *data_ptr,
     return NULL;
 }
 
-bool nat_map_remove_if(nat_map *map, const void *data_ptr, nat_map_find_condition condition,
+bool nat_map_remove_if(nat_map *map, const void *data_ptr,
+                       nat_map_find_condition condition,
                        nat_map_free_callback free_callback) {
     size_t i;
     bool removed_any;
