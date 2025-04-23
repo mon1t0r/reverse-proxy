@@ -11,7 +11,7 @@ static const char error_msg[] =
     "Usage: %s [OPTION]... [LISTEN_PORT] [DEST_ADDR] [DEST_PORT]\n(%s)\n";
 
 static const struct option longopts[] = {
-    { "interface",                    required_argument, NULL, 'i' },
+    { "interface",                    required_argument, NULL, 'I' },
     { "nat-table-size",               required_argument, NULL, 't' },
     { "nat-table-entry-min-lifetime", required_argument, NULL, 'l' },
     { "nat-port-range-start",         required_argument, NULL, 's' },
@@ -19,7 +19,7 @@ static const struct option longopts[] = {
     { 0,                              0,                 0,    0   }
 };
 
-static const char optstring[] = "i:t:l:s:e:";
+static const char optstring[] = "I:t:l:s:e:";
 
 void options_error(const char *exec_name, const char *reason) {
     fprintf(stderr, error_msg, exec_name, reason);
@@ -77,7 +77,7 @@ struct proxy_opts options_parse(int argc, char *argv[]) {
         switch(c) {
             case -1:
                 break;
-            case 'i':
+            case 'I':
                 strncpy(options.interface_name, optarg, IFNAMSIZ);
                 options.interface_name[IFNAMSIZ - 1] = '\0';
                 break;
@@ -121,11 +121,11 @@ struct proxy_opts options_parse(int argc, char *argv[]) {
         options_error(argv[0], "LISTEN_PORT - invalid value");
     }
 
-    if(!options_parse_net_addr(argv[optind], &options.dest_addr)) {
+    if(!options_parse_net_addr(argv[optind + 1], &options.dest_addr)) {
         options_error(argv[0], "DEST_ADDR - invalid value");
     }
 
-    if(!options_parse_port(argv[optind], &options.dest_port)) {
+    if(!options_parse_port(argv[optind + 2], &options.dest_port)) {
         options_error(argv[0], "DEST_PORT - invalid value");
     }
 
