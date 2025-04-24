@@ -2,13 +2,14 @@
 This project is an implementation of NAT / reverse proxy, that works
 on Layer 3 and Layer 4 of the ISO/OSI model.
 
-The application listens for incoming TCP and UDP packets on the configured port, forwards them to the 
-destination host, and then receives and forwards response to the requesting client.
+The application listens for incoming TCP and UDP packets on the configured
+port, forwards them to the destination host, and then receives and forwards
+response to the requesting client.
 
-Therefore, the requesting client must send the data with the destination IP and port of the proxy.
-Higher layer protocols, which check the destination address (e.g. HTTPS) will not work correctly
-with the current implementation, as the proxy operates only on L3/L4 and does not modify any TCP/UDP
-payload.
+Therefore, the requesting client must send the data with the destination IP and
+port of the proxy. Higher layer protocols, which check the destination address
+(e.g. HTTPS) will not work correctly with the current implementation, as the
+proxy operates only on L3/L4 and does not modify any TCP/UDP payload.
 
 ## Build and run
 ### Requirements
@@ -31,7 +32,8 @@ sudo ./reverse-proxy
 ```
 
 ## Important info
-Before using the proxy, make sure the correct port numbers are specified in the script and run
+Before using the proxy, make sure the correct port numbers are specified in the
+script and run
 ```
 sudo ./shell/disable_tcp_reply.sh
 ```
@@ -46,5 +48,7 @@ sudo ./shell/enable_tcp_reply.sh
 `iptables` needs to be installed to execute the script.
 
 ## TODO
- - solve the problem with IP packets fragmentation (probably use higher level sockets);
+ - perform extensive testing (including UDP packets);
+ - solve the problem with IP packets fragmentation (probably use higher level
+ sockets);
  - configuration from command line arguments/config file.

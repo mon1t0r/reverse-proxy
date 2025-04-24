@@ -23,11 +23,6 @@ enum {
     packet_buf_size = 65536
 };
 
-struct int_info {
-    int index;
-    uint32_t addr_net;
-};
-
 uint16_t get_free_port(nat_table *nat_table, const struct proxy_opts *options,
                        uint16_t *port_cntr) {
     uint16_t init_val;
@@ -65,7 +60,7 @@ bool cond_time(struct nat_entry entry, const void *data_ptr) {
     nat_data_ptr = data_ptr;
 
     return nat_data_ptr->alloc_time - entry.alloc_time >=
-    nat_data_ptr->min_lifetime;
+        nat_data_ptr->min_lifetime;
 }
 
 void trans_hdr_tcp_update(struct trans_hdr_map *trans_hdr_map,
@@ -160,7 +155,6 @@ bool handle_packet_ctos(nat_table *nat_table,
         }
     }
 
-    /* TODO: Fix checksum calculations */
     trans_hdr_tcp_update(trans_hdr_map, net_hdr_map, int_addr,
                          htonl(options->dest_addr));
     net_hdr_update(net_hdr_map, int_addr,
@@ -301,7 +295,9 @@ int main(int argc, char *argv[]) {
     uint16_t port_cntr;
     nat_table *nat_table;
 
-    struct int_info int_info;
+    int if_index;
+    uint32_t if_net_addr;
+
     int socket_rx_fd;
     int socket_tx_fd;
 
@@ -319,20 +315,18 @@ int main(int argc, char *argv[]) {
     }
 
     create_sockets(&socket_rx_fd, &socket_tx_fd);
-    int_info.index =
-        get_interface_index(socket_rx_fd, options.interface_name);
-    int_info.addr_net =
-        get_interface_net_addr(socket_rx_fd, int_info.index);
-    bind_socket_rx(socket_rx_fd, int_info.index);
-    bind_socket_tx(socket_tx_fd, int_info.index);
+    if_index = get_interface_index(socket_rx_fd, options.interface_name);
+    if_net_addr = get_interface_net_addr(socket_rx_fd, if_index);
+
+    bind_socket_rx(socket_rx_fd, if_index);
+    bind_socket_tx(socket_tx_fd, if_index);
 
     printf("Initialized successfully\n");
     printf("Listening on port %d...\n\n", options.listen_port);
 
     while((buf_len = recv(socket_rx_fd, buf,
                           packet_buf_size * sizeof(uint8_t), 0)) > 0) {
-        if(!handle_packet(buf, nat_table, &port_cntr, &options,
-                          int_info.addr_net)) {
+        if(!handle_packet(buf, nat_table, &port_cntr, &options, if_net_addr)) {
             continue;
         }
 
