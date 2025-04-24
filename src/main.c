@@ -179,7 +179,6 @@ bool handle_packet_stoc(nat_table *nat_table,
         return false;
     }
 
-    /* TODO: Fix checksum calculations */
     trans_hdr_tcp_update(trans_hdr_map, net_hdr_map, int_addr,
                          nat_entry_ptr->addr_src);
     net_hdr_update(net_hdr_map, int_addr,
