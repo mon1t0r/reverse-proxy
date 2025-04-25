@@ -28,7 +28,20 @@ make
 
 ### Run
 ```
-sudo ./reverse-proxy
+sudo ./reverse-proxy [OPTION]... [LISTEN_PORT] [DEST_ADDR] [DEST_PORT]
+```
+
+### Options
+```
+LISTEN_PORT - port number, on which proxy will be listening for incoming packets
+DEST_ADDR   - network address of the destination (where packets will be forwarded)
+DEST_PORT   - port number of the destination (where packets will be forwarded)
+
+-I --interface                      interface name
+-t --nat-table-size                 size of the NAT hashtable (not related to the max number of NAT entries, as they will be added to linked lists in case the table cell is not empty)
+-l --nat-table-entry-min-lifetime   time without a packet for a NAT entry, to be available for removal, in seconds
+-s --nat-port-range-start           port range start number, which will be used for NAT
+-e --nat-port-range-end             port range end number, which will be used for NAT
 ```
 
 ## Important info
@@ -45,10 +58,9 @@ Kernel processing can be enabled back by running
 sudo shell/enable_tcp_reply.sh
 ```
 
-`iptables` needs to be installed to execute the script.
+`iptables` needs to be installed in order to execute the script.
 
 ## TODO
  - perform extensive testing (including UDP packets);
  - solve the problem with IP packets fragmentation (probably use higher level
- sockets);
- - configuration from command line arguments/config file.
+ sockets).

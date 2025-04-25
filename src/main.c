@@ -174,7 +174,8 @@ bool handle_packet_stoc(nat_table *nat_table,
                         struct trans_hdr_map *trans_hdr_map) {
     struct nat_entry *nat_entry_ptr;
 
-    nat_entry_ptr = nat_table_get_by_alloc(nat_table, *trans_hdr_map->port_dst);
+    nat_entry_ptr = nat_table_get_by_alloc(nat_table,
+                                           *trans_hdr_map->port_dst);
     if(nat_entry_ptr == NULL) {
         return false;
     }
