@@ -28,7 +28,7 @@ make
 
 ### Run
 ```
-sudo ./reverse-proxy [OPTION]... [LISTEN_PORT] [DEST_ADDR] [DEST_PORT]
+sudo release/reverse-proxy [OPTION]... [LISTEN_PORT] [DEST_ADDR] [DEST_PORT]
 ```
 
 ### Options
