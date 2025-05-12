@@ -1,6 +1,6 @@
 # Compiler configuration
 CC:=gcc
-CFLAGS:=-Iinclude/ -Werror -Wall -m64 -std=c89 -pedantic
+CFLAGS:=-Iinclude/ -Werror -Wall -std=c89 -pedantic
 LDLIBS:=
 
 # Target file name
