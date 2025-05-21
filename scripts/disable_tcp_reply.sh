@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 LISTEN_PORT=52880
 NAT_PORT_RANGE=49160:49192
