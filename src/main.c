@@ -141,11 +141,13 @@ bool packet_handle_stoc(struct handle_context *ctx,
         return false;
     }
 
-    /* TODO: Review if checksum recalculation is necessary */
-
     /* Recompute checksum only for TCP pseudo header, or if checksum is not
      * equal to 0 (UDP pseudo header, if UDP checksum is calculated) */
     if(protocol == IPPROTO_TCP || hdr_map->checksum != 0) {
+        /* Set addr_dst_prev and addr_src to 0, as ingoing and outgoing
+         * interface addresses are probably equal, so specifying them will not
+         * change the checksum. This will need to be changed, if the proxy will
+         * need to work with multiple interfaces */
         hdr_update_pseudo(hdr_map, addr->sin_addr.s_addr, 0, 0,
                           htonl(nat_entry_ptr->addr_src));
     }
@@ -180,11 +182,13 @@ bool packet_handle_ctos(struct handle_context *ctx,
         }
     }
 
-    /* TODO: Review if checksum recalculation is necessary */
-
     /* Recompute checksum only for TCP pseudo header, or if checksum is not
      * equal to 0 (UDP pseudo header, if UDP checksum is calculated) */
     if(protocol == IPPROTO_TCP || hdr_map->checksum != 0) {
+        /* Set addr_dst_prev and addr_src to 0, as ingoing and outgoing
+         * interface addresses are probably equal, so specifying them will not
+         * change the checksum. This will need to be changed, if the proxy will
+         * need to work with multiple interfaces */
         hdr_update_pseudo(hdr_map, addr->sin_addr.s_addr, 0, 0,
                           htonl(ctx->opts.dest_addr));
     }
