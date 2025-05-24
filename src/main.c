@@ -40,6 +40,7 @@ uint16_t get_free_port(struct handle_context *ctx) {
         ctx->port_cntr = ctx->opts.nat_port_range_start;
     }
 
+    /* Look for a free port, which is not currently used by NAT */
     while(nat_table_get_by_alloc(ctx->nat_table, ctx->port_cntr)) {
         ctx->port_cntr++;
 
@@ -55,7 +56,7 @@ uint16_t get_free_port(struct handle_context *ctx) {
     return ctx->port_cntr;
 }
 
-bool cond_time(struct nat_entry entry, const void *data_ptr) {
+bool nat_cond_func_time(struct nat_entry entry, const void *data_ptr) {
     const struct {
         time_t alloc_time;
         time_t min_lifetime;
@@ -90,7 +91,8 @@ struct nat_entry *nat_punch_hole(struct handle_context *ctx, uint16_t port_src,
     nat_entry_data.min_lifetime = ctx->opts.nat_table_entry_min_lifetime;
 
     /* If no entries were removed, NAT hole punch failed */
-    if(!nat_table_remove_if(ctx->nat_table, &nat_entry_data, &cond_time)) {
+    if(!nat_table_remove_if(ctx->nat_table, &nat_entry_data,
+                            &nat_cond_func_time)) {
         return NULL;
     }
 
@@ -105,17 +107,17 @@ ins:
     return nat_table_insert(ctx->nat_table, nat_entry_new);
 }
 
-void hdr_update_addr(struct trans_hdr_map *hdr_map,
-                     uint32_t addr_src_prev, uint32_t addr_dst_prev,
-                     uint32_t addr_src, uint32_t addr_dst) {
+void hdr_update_pseudo(struct trans_hdr_map *hdr_map,
+                       uint32_t addr_src_prev, uint32_t addr_dst_prev,
+                       uint32_t addr_src, uint32_t addr_dst) {
     *hdr_map->checksum = recompute_checksum_32(
         *hdr_map->checksum, addr_src_prev, addr_src);
     *hdr_map->checksum = recompute_checksum_32(
         *hdr_map->checksum, addr_dst_prev, addr_dst);
 }
 
-void hdr_update_port(struct trans_hdr_map *hdr_map,
-                     uint16_t port_src, uint16_t port_dst) {
+void hdr_set_port(struct trans_hdr_map *hdr_map,
+                  uint16_t port_src, uint16_t port_dst) {
     *hdr_map->checksum = recompute_checksum_16(
         *hdr_map->checksum, *hdr_map->port_src, port_src);
     *hdr_map->checksum = recompute_checksum_16(
@@ -128,19 +130,29 @@ void hdr_update_port(struct trans_hdr_map *hdr_map,
 /* Server to client */
 bool packet_handle_stoc(struct handle_context *ctx,
                         struct trans_hdr_map *hdr_map,
-                        struct sockaddr_in *addr) {
+                        struct sockaddr_in *addr, int protocol) {
     struct nat_entry *nat_entry_ptr;
 
+    /* Look for existing NAT entry */
     nat_entry_ptr = nat_table_get_by_alloc(ctx->nat_table,
                                            ntohs(*hdr_map->port_dst));
+    /* If NAT entry was not found, packet processing failed, as we do not know
+     * to which client the packet should be sent */
     if(nat_entry_ptr == NULL) {
         return false;
     }
 
-    hdr_update_addr(hdr_map, addr->sin_addr.s_addr, htonl(ctx->if_addr),
-                    htonl(ctx->if_addr), htonl(nat_entry_ptr->addr_src));
-    hdr_update_port(hdr_map, htons(ctx->opts.listen_port),
-                    htons(nat_entry_ptr->port_src));
+    /* TODO: Review if checksum recalculation is necessary */
+
+    /* Recompute checksum only for TCP pseudo header, or if checksum is not
+     * equal to 0 (UDP pseudo header, if UDP checksum is calculated) */
+    if(protocol == IPPROTO_TCP || hdr_map->checksum != 0) {
+        hdr_update_pseudo(hdr_map, addr->sin_addr.s_addr, htonl(ctx->if_addr),
+                          htonl(ctx->if_addr), htonl(nat_entry_ptr->addr_src));
+    }
+
+    hdr_set_port(hdr_map, htons(ctx->opts.listen_port),
+                 htons(nat_entry_ptr->port_src));
 
     addr->sin_addr.s_addr = htonl(nat_entry_ptr->addr_src);
 
@@ -150,25 +162,36 @@ bool packet_handle_stoc(struct handle_context *ctx,
 /* Client to server */
 bool packet_handle_ctos(struct handle_context *ctx,
                         struct trans_hdr_map *hdr_map,
-                        struct sockaddr_in *addr) {
+                        struct sockaddr_in *addr, int protocol) {
     struct nat_entry *nat_entry_ptr;
 
+    /* Look for existing NAT entry */
     nat_entry_ptr = nat_table_get_by_src(ctx->nat_table,
                                          ntohs(*hdr_map->port_src),
                                          ntohl(addr->sin_addr.s_addr));
 
+    /* If NAT entry was not found */
     if(nat_entry_ptr == NULL) {
+        /* Create new NAT entry */
         nat_entry_ptr = nat_punch_hole(ctx, ntohs(*hdr_map->port_src),
                                        ntohl(addr->sin_addr.s_addr));
+        /* If NAT entry creation failed, packet processing failed */
         if(nat_entry_ptr == NULL) {
             return false;
         }
     }
 
-    hdr_update_addr(hdr_map, addr->sin_addr.s_addr, htonl(ctx->if_addr),
-                    htonl(ctx->if_addr), htonl(ctx->opts.dest_addr));
-    hdr_update_port(hdr_map, htons(nat_entry_ptr->port_alloc),
-                    htons(ctx->opts.dest_port));
+    /* TODO: Review if checksum recalculation is necessary */
+
+    /* Recompute checksum only for TCP pseudo header, or if checksum is not
+     * equal to 0 (UDP pseudo header, if UDP checksum is calculated) */
+    if(protocol == IPPROTO_TCP || hdr_map->checksum != 0) {
+        hdr_update_pseudo(hdr_map, addr->sin_addr.s_addr, htonl(ctx->if_addr),
+                          htonl(ctx->if_addr), htonl(ctx->opts.dest_addr));
+    }
+
+    hdr_set_port(hdr_map, htons(nat_entry_ptr->port_alloc),
+                 htons(ctx->opts.dest_port));
 
     addr->sin_addr.s_addr = htonl(ctx->opts.dest_addr);
 
@@ -183,13 +206,16 @@ bool packet_handle(struct handle_context *ctx, uint8_t *buf,
         return false;
     }
 
+    /* If packet dst port is listen port, this is a client to server packet */
     if(ntohs(*hdr_map.port_dst) == ctx->opts.listen_port) {
-        return packet_handle_ctos(ctx, &hdr_map, addr);
+        return packet_handle_ctos(ctx, &hdr_map, addr, protocol);
     }
 
+    /* If packet src address is dst address and packet src port is dst port,
+     * this is a server to client packet*/
     if(ntohl(addr->sin_addr.s_addr) == ctx->opts.dest_addr &&
        ntohs(*hdr_map.port_src) == ctx->opts.dest_port) {
-        return packet_handle_stoc(ctx, &hdr_map, addr);
+        return packet_handle_stoc(ctx, &hdr_map, addr, protocol);
     }
 
     return false;
@@ -266,6 +292,10 @@ int main(int argc, char *argv[]) {
 
     /* Port counter */
     ctx.port_cntr = ctx.opts.nat_port_range_start;
+
+    /* Interface address */
+    /* TODO: Fill in interface address (how did this even work before?) */
+    ctx.if_addr = 0;
 
     /* Buffer */
     buf = malloc(packet_buf_size * sizeof(uint8_t));
