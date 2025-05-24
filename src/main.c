@@ -25,7 +25,6 @@ struct handle_context {
     struct proxy_opts  opts;
     uint16_t           port_cntr;
     nat_table          *nat_table;
-    uint32_t           if_addr;
 };
 
 uint16_t get_free_port(struct handle_context *ctx) {
@@ -147,8 +146,8 @@ bool packet_handle_stoc(struct handle_context *ctx,
     /* Recompute checksum only for TCP pseudo header, or if checksum is not
      * equal to 0 (UDP pseudo header, if UDP checksum is calculated) */
     if(protocol == IPPROTO_TCP || hdr_map->checksum != 0) {
-        hdr_update_pseudo(hdr_map, addr->sin_addr.s_addr, htonl(ctx->if_addr),
-                          htonl(ctx->if_addr), htonl(nat_entry_ptr->addr_src));
+        hdr_update_pseudo(hdr_map, addr->sin_addr.s_addr, 0, 0,
+                          htonl(nat_entry_ptr->addr_src));
     }
 
     hdr_set_port(hdr_map, htons(ctx->opts.listen_port),
@@ -186,8 +185,8 @@ bool packet_handle_ctos(struct handle_context *ctx,
     /* Recompute checksum only for TCP pseudo header, or if checksum is not
      * equal to 0 (UDP pseudo header, if UDP checksum is calculated) */
     if(protocol == IPPROTO_TCP || hdr_map->checksum != 0) {
-        hdr_update_pseudo(hdr_map, addr->sin_addr.s_addr, htonl(ctx->if_addr),
-                          htonl(ctx->if_addr), htonl(ctx->opts.dest_addr));
+        hdr_update_pseudo(hdr_map, addr->sin_addr.s_addr, 0, 0,
+                          htonl(ctx->opts.dest_addr));
     }
 
     hdr_set_port(hdr_map, htons(nat_entry_ptr->port_alloc),
@@ -292,10 +291,6 @@ int main(int argc, char *argv[]) {
 
     /* Port counter */
     ctx.port_cntr = ctx.opts.nat_port_range_start;
-
-    /* Interface address */
-    /* TODO: Fill in interface address (how did this even work before?) */
-    ctx.if_addr = 0;
 
     /* Buffer */
     buf = malloc(packet_buf_size * sizeof(uint8_t));
