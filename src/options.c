@@ -51,7 +51,7 @@ bool options_parse_net_addr(const char *arg, uint32_t *addr) {
 void options_set_default(struct proxy_opts *options) {
     memset(options, 0, sizeof(*options));
 
-    strcpy(options->interface_name, "eth0");
+    options->interface_name[0]            = '\0';
     options->nat_table_size               = 50;
     options->nat_table_entry_min_lifetime = 5 * 60;
     options->nat_port_range_start         = 49160;
@@ -136,7 +136,11 @@ void options_print(const struct proxy_opts *options) {
     struct in_addr addr;
 
     printf("Options\n");
-    printf("|-interface                     %s\n", options->interface_name);
+    if(options->interface_name[0] != '\0') {
+        printf("|-interface                     %s\n", options->interface_name);
+    } else {
+        printf("|-interface                     [not bound]\n");
+    }
     printf("|-listen port                   %d\n", options->listen_port);
 
     addr.s_addr = htonl(options->dest_addr);

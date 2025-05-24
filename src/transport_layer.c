@@ -1,14 +1,15 @@
+#include <netinet/in.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 
 #include "transport_layer.h"
 
-uint8_t map_transport_header(uint8_t *buf, uint8_t proto,
+uint8_t map_transport_header(uint8_t *buf, uint8_t protocol,
                              struct trans_hdr_map *trans_hdr_map) {
     struct tcphdr *tcphdr;
     struct udphdr *udphdr;
 
-    if(proto == trans_proto_tcp) {
+    if(protocol == IPPROTO_TCP) {
         tcphdr = (struct tcphdr *) buf;
 
         trans_hdr_map->port_src = &tcphdr->source;
@@ -18,7 +19,7 @@ uint8_t map_transport_header(uint8_t *buf, uint8_t proto,
         return tcphdr->doff;
     }
 
-    if(proto == trans_proto_udp) {
+    if(protocol == IPPROTO_UDP) {
         udphdr = (struct udphdr *) buf;
 
         trans_hdr_map->port_src = &udphdr->source;
