@@ -64,6 +64,4 @@ sudo scripts/enable_tcp_reply.sh
 `iptables` needs to be installed in order to execute the script.
 
 ## TODO
- - perform extensive testing (including UDP packets);
- - solve the problem with IP packets fragmentation (probably use higher level
- sockets).
+ - perform extensive testing (including UDP packets).
