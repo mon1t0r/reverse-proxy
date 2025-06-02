@@ -11,6 +11,11 @@ port of the proxy. Higher layer protocols, which check the destination address
 (e.g. HTTPS) will not work correctly with the current implementation, as the
 proxy operates only on L3/L4 and does not modify any TCP/UDP payload.
 
+Work with multiple interfaces is currently unsupported (TCP/UDP checksum
+recalculation will produce incorrect checksums). Please be sure that packets
+come in and out on the same interface, or bind to the interface with `-I`
+or `--interface` option.
+
 ## Build and run
 ### Requirements
 ```
@@ -64,4 +69,5 @@ sudo scripts/enable_tcp_reply.sh
 `iptables` needs to be installed in order to execute the script.
 
 ## TODO
- - perform extensive testing (including UDP packets).
+ - perform extensive testing (including UDP packets);
+ - fix TCP/UDP checksum recalculation when working with multiple interfaces.
