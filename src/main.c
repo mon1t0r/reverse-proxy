@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/select.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <net/ethernet.h>
 #include <netpacket/packet.h>
@@ -266,9 +266,8 @@ int main(int argc, char *argv[]) {
 
     int sock_tcp_fd, sock_udp_fd;
 
-    fd_set sock_fd_set;
-    int sock_max_fd1;
-    int n_sock_ready;
+    struct pollfd poll_fd[2];
+    int n_ready_sock_fd;
 
     uint8_t *buf;
     ssize_t buf_len;
@@ -299,36 +298,36 @@ int main(int argc, char *argv[]) {
     /* Buffer */
     buf = malloc(packet_buf_size * sizeof(uint8_t));
 
-    /* Preparation for select() */
-    FD_ZERO(&sock_fd_set);
-    sock_max_fd1 = (sock_tcp_fd > sock_udp_fd ? sock_tcp_fd : sock_udp_fd) + 1;
+    /* Preparation for poll() */
+    poll_fd[0].fd = sock_tcp_fd;
+    poll_fd[0].events = POLLIN;
+    poll_fd[1].fd = sock_udp_fd;
+    poll_fd[1].events = POLLIN;
 
     printf("Initialized successfully\n");
     printf("Listening on port %d...\n\n", ctx.opts.listen_port);
 
     /* Main loop */
     for(;;) {
-        FD_SET(sock_tcp_fd, &sock_fd_set);
-        FD_SET(sock_udp_fd, &sock_fd_set);
+        n_ready_sock_fd = poll(poll_fd, 2, -1);
 
-        /* TODO: Rewrite with epoll() */
-        n_sock_ready = select(sock_max_fd1, &sock_fd_set, NULL, NULL, NULL);
-        if(n_sock_ready == 0) {
+        if(n_ready_sock_fd == 0) {
             continue;
         }
-        if(n_sock_ready < 0) {
-            perror("select()");
+
+        if(n_ready_sock_fd == -1) {
+            perror("poll()");
             exit(EXIT_FAILURE);
         }
 
         addr_len = sizeof(addr);
 
-        if(FD_ISSET(sock_tcp_fd, &sock_fd_set)) {
+        if(poll_fd[0].revents & POLLIN) {
             buf_len = recvfrom(sock_tcp_fd, buf,
                                packet_buf_size * sizeof(uint8_t),
                                0, (struct sockaddr *) &addr, &addr_len);
             sock_recv_fd = sock_tcp_fd;
-        } else if(FD_ISSET(sock_udp_fd, &sock_fd_set)) {
+        } else if(poll_fd[1].revents & POLLIN) {
             buf_len = recvfrom(sock_udp_fd, buf,
                                packet_buf_size * sizeof(uint8_t),
                                0, (struct sockaddr *) &addr, &addr_len);
