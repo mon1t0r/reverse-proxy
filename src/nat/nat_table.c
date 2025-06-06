@@ -11,12 +11,12 @@ struct nat_table {
     nat_map *alloc_to_src_map;
 };
 
-bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr);
-bool cond_alloc_to_src(struct nat_entry entry, const void *data_ptr);
+static bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr);
+static bool cond_alloc_to_src(struct nat_entry entry, const void *data_ptr);
 
-size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size);
-size_t hash_alloc(uint16_t dst_port, size_t size);
-unsigned int hash_num(unsigned int x);
+static size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size);
+static size_t hash_alloc(uint16_t dst_port, size_t size);
+static unsigned int hash_num(unsigned int x);
 
 nat_table *nat_table_alloc(size_t size) {
     nat_table *table;
@@ -150,7 +150,7 @@ void nat_table_free(nat_table *table) {
     free(table);
 }
 
-bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr) {
+static bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr) {
     const uint64_t *nat_data_ptr;
     uint32_t addr_src;
     uint16_t port_src;
@@ -163,19 +163,19 @@ bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr) {
     return entry.addr_src == addr_src && entry.port_src == port_src;
 }
 
-bool cond_alloc_to_src(struct nat_entry entry, const void *data_ptr) {
+static bool cond_alloc_to_src(struct nat_entry entry, const void *data_ptr) {
     return entry.port_alloc == *((uint16_t *) data_ptr);
 }
 
-size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size) {
+static size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size) {
     return hash_num(hash_num(port_src) + hash_num(addr_src)) % size;
 }
 
-size_t hash_alloc(uint16_t dst_port, size_t size) {
+static size_t hash_alloc(uint16_t dst_port, size_t size) {
     return hash_num(dst_port) % size;
 }
 
-unsigned int hash_num(unsigned int x) {
+static unsigned int hash_num(unsigned int x) {
     x = ((x >> 16) ^ x) * 0x45d9f3b;
     x = ((x >> 16) ^ x) * 0x45d9f3b;
     x = (x >> 16) ^ x;

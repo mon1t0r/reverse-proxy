@@ -27,7 +27,7 @@ struct handle_context {
     nat_table          *nat_table;
 };
 
-uint16_t get_free_port(struct handle_context *ctx) {
+static uint16_t get_free_port(struct handle_context *ctx) {
     uint16_t init_val;
 
     init_val = ctx->port_cntr;
@@ -55,7 +55,7 @@ uint16_t get_free_port(struct handle_context *ctx) {
     return ctx->port_cntr;
 }
 
-bool nat_cond_func_time(struct nat_entry entry, const void *data_ptr) {
+static bool nat_cond_func_time(struct nat_entry entry, const void *data_ptr) {
     const struct {
         time_t alloc_time;
         time_t min_lifetime;
@@ -67,8 +67,8 @@ bool nat_cond_func_time(struct nat_entry entry, const void *data_ptr) {
            nat_data_ptr->min_lifetime;
 }
 
-struct nat_entry *nat_punch_hole(struct handle_context *ctx, uint16_t port_src,
-                                 uint32_t addr_src) {
+static struct nat_entry *nat_punch_hole(struct handle_context *ctx,
+                                        uint16_t port_src, uint32_t addr_src) {
     struct nat_entry nat_entry_new;
     struct {
         time_t alloc_time;
@@ -106,17 +106,17 @@ ins:
     return nat_table_insert(ctx->nat_table, nat_entry_new);
 }
 
-void hdr_update_pseudo(struct trans_hdr_map *hdr_map,
-                       uint32_t addr_src_prev, uint32_t addr_dst_prev,
-                       uint32_t addr_src, uint32_t addr_dst) {
+static void hdr_update_pseudo(struct trans_hdr_map *hdr_map,
+                              uint32_t addr_src_prev, uint32_t addr_dst_prev,
+                              uint32_t addr_src, uint32_t addr_dst) {
     *hdr_map->checksum = recompute_checksum_32(
         *hdr_map->checksum, addr_src_prev, addr_src);
     *hdr_map->checksum = recompute_checksum_32(
         *hdr_map->checksum, addr_dst_prev, addr_dst);
 }
 
-void hdr_set_port(struct trans_hdr_map *hdr_map,
-                  uint16_t port_src, uint16_t port_dst) {
+static void hdr_set_port(struct trans_hdr_map *hdr_map,
+                         uint16_t port_src, uint16_t port_dst) {
     *hdr_map->checksum = recompute_checksum_16(
         *hdr_map->checksum, *hdr_map->port_src, port_src);
     *hdr_map->checksum = recompute_checksum_16(
@@ -127,9 +127,9 @@ void hdr_set_port(struct trans_hdr_map *hdr_map,
 }
 
 /* Server to client */
-bool packet_handle_stoc(struct handle_context *ctx,
-                        struct trans_hdr_map *hdr_map,
-                        struct sockaddr_in *addr, int protocol) {
+static bool packet_handle_stoc(struct handle_context *ctx,
+                               struct trans_hdr_map *hdr_map,
+                               struct sockaddr_in *addr, int protocol) {
     struct nat_entry *nat_entry_ptr;
 
     /* Look for existing NAT entry */
@@ -161,9 +161,9 @@ bool packet_handle_stoc(struct handle_context *ctx,
 }
 
 /* Client to server */
-bool packet_handle_ctos(struct handle_context *ctx,
-                        struct trans_hdr_map *hdr_map,
-                        struct sockaddr_in *addr, int protocol) {
+static bool packet_handle_ctos(struct handle_context *ctx,
+                               struct trans_hdr_map *hdr_map,
+                               struct sockaddr_in *addr, int protocol) {
     struct nat_entry *nat_entry_ptr;
 
     /* Look for existing NAT entry */
@@ -201,8 +201,8 @@ bool packet_handle_ctos(struct handle_context *ctx,
     return true;
 }
 
-bool packet_handle(struct handle_context *ctx, uint8_t *buf,
-                  struct sockaddr_in *addr, int protocol) {
+static bool packet_handle(struct handle_context *ctx, uint8_t *buf,
+                          struct sockaddr_in *addr, int protocol) {
     struct trans_hdr_map hdr_map;
 
     if(map_transport_header(buf, protocol, &hdr_map) == 0) {
@@ -224,7 +224,7 @@ bool packet_handle(struct handle_context *ctx, uint8_t *buf,
     return false;
 }
 
-void socket_init(int socket_fd, const char *int_name) {
+static void socket_init(int socket_fd, const char *int_name) {
     int sockoptval;
     int int_name_len;
 
@@ -250,7 +250,7 @@ void socket_init(int socket_fd, const char *int_name) {
     }
 }
 
-int socket_create(int protocol) {
+static int socket_create(int protocol) {
     int socket_fd;
 
     if((socket_fd = socket(AF_INET, SOCK_RAW, protocol)) < 0) {
@@ -309,6 +309,7 @@ int main(int argc, char *argv[]) {
 
     /* Main loop */
     for(;;) {
+        /* Wait for one of the sockets to become available for reading */
         n_ready_sock_fd = poll(poll_fd, 2, -1);
 
         if(n_ready_sock_fd == 0) {
@@ -317,11 +318,12 @@ int main(int argc, char *argv[]) {
 
         if(n_ready_sock_fd == -1) {
             perror("poll()");
-            exit(EXIT_FAILURE);
+            goto exit;
         }
 
         addr_len = sizeof(addr);
 
+        /* Receive from TCP or UDP socket */
         if(poll_fd[0].revents & POLLIN) {
             buf_len = recvfrom(sock_tcp_fd, buf,
                                packet_buf_size * sizeof(uint8_t),
@@ -338,26 +340,29 @@ int main(int argc, char *argv[]) {
 
         if(buf_len < 0) {
             perror("recvfrom()");
-            exit(EXIT_FAILURE);
+            goto exit;
         }
 
         iphdr = (struct iphdr *) buf;
 
+        /* Handle packet */
         if(!packet_handle(&ctx, buf + (iphdr->ihl * 4), &addr,
                           iphdr->protocol)) {
             continue;
         }
 
+        /* Forward packet */
         addr.sin_port = 0;
         if(sendto(sock_recv_fd, buf + (iphdr->ihl * 4),
                   buf_len - (iphdr->ihl * 4), 0, (struct sockaddr *) &addr,
                   sizeof(addr)) < 0) {
             perror("sendto()");
-            exit(EXIT_FAILURE);
+            goto exit;
         }
     }
 
     /* Free resources */
+exit:
     free(buf);
     close(sock_udp_fd);
     close(sock_tcp_fd);

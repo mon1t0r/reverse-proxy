@@ -21,24 +21,24 @@ static const struct option longopts[] = {
 
 static const char optstring[] = "I:t:l:s:e:";
 
-void options_error(const char *exec_name, const char *reason) {
+static void options_error(const char *exec_name, const char *reason) {
     fprintf(stderr, error_msg, exec_name, reason);
     exit(EXIT_FAILURE);
 }
 
-bool options_parse_size(const char *arg, size_t *size) {
+static bool options_parse_size(const char *arg, size_t *size) {
     return sscanf(arg, "%lu", size) == 1;
 }
 
-bool options_parse_time(const char *arg, time_t *time) {
+static bool options_parse_time(const char *arg, time_t *time) {
     return sscanf(arg, "%ld", time) == 1;
 }
 
-bool options_parse_port(const char *arg, uint16_t *port) {
+static bool options_parse_port(const char *arg, uint16_t *port) {
     return sscanf(arg, "%hu", port) == 1;
 }
 
-bool options_parse_net_addr(const char *arg, uint32_t *addr) {
+static bool options_parse_net_addr(const char *arg, uint32_t *addr) {
     if(inet_pton(AF_INET, arg, addr) != 1) {
         return false;
     }
@@ -48,7 +48,7 @@ bool options_parse_net_addr(const char *arg, uint32_t *addr) {
     return true;
 }
 
-void options_set_default(struct proxy_opts *options) {
+static void options_set_default(struct proxy_opts *options) {
     memset(options, 0, sizeof(*options));
 
     options->interface_name[0]            = '\0';
