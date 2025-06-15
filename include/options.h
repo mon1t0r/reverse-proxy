@@ -16,7 +16,7 @@ struct proxy_opts {
     uint16_t nat_port_range_end;
 };
 
-struct proxy_opts options_parse(int argc, char *argv[]);
+struct proxy_opts options_parse(int argc, char * const *argv);
 
 void options_print(const struct proxy_opts *options);
 

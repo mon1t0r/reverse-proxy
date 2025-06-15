@@ -21,24 +21,29 @@ static const struct option longopts[] = {
 
 static const char optstring[] = "I:t:l:s:e:";
 
-static void options_error(const char *exec_name, const char *reason) {
+static void options_error(const char *exec_name, const char *reason)
+{
     fprintf(stderr, error_msg, exec_name, reason);
     exit(EXIT_FAILURE);
 }
 
-static bool options_parse_size(const char *arg, size_t *size) {
+static bool options_parse_size(const char *arg, size_t *size)
+{
     return sscanf(arg, "%lu", size) == 1;
 }
 
-static bool options_parse_time(const char *arg, time_t *time) {
+static bool options_parse_time(const char *arg, time_t *time)
+{
     return sscanf(arg, "%ld", time) == 1;
 }
 
-static bool options_parse_port(const char *arg, uint16_t *port) {
+static bool options_parse_port(const char *arg, uint16_t *port)
+{
     return sscanf(arg, "%hu", port) == 1;
 }
 
-static bool options_parse_net_addr(const char *arg, uint32_t *addr) {
+static bool options_parse_net_addr(const char *arg, uint32_t *addr)
+{
     if(inet_pton(AF_INET, arg, addr) != 1) {
         return false;
     }
@@ -48,7 +53,8 @@ static bool options_parse_net_addr(const char *arg, uint32_t *addr) {
     return true;
 }
 
-static void options_set_default(struct proxy_opts *options) {
+static void options_set_default(struct proxy_opts *options)
+{
     memset(options, 0, sizeof(*options));
 
     options->interface_name[0]            = '\0';
@@ -58,7 +64,8 @@ static void options_set_default(struct proxy_opts *options) {
     options->nat_port_range_end           = 49190;
 }
 
-struct proxy_opts options_parse(int argc, char *argv[]) {
+struct proxy_opts options_parse(int argc, char * const *argv)
+{
     extern int optind;
     extern char *optarg;
 
@@ -132,8 +139,10 @@ struct proxy_opts options_parse(int argc, char *argv[]) {
     return options;
 }
 
-void options_print(const struct proxy_opts *options) {
-    struct in_addr addr;
+void options_print(const struct proxy_opts *options)
+{
+    char buf[INET_ADDRSTRLEN];
+    uint32_t addr;
 
     printf("Options\n");
     if(options->interface_name[0] != '\0') {
@@ -143,8 +152,11 @@ void options_print(const struct proxy_opts *options) {
     }
     printf("|-listen port                   %d\n", options->listen_port);
 
-    addr.s_addr = htonl(options->dest_addr);
-    printf("|-destination address           %s\n", inet_ntoa(addr));
+    addr = htonl(options->dest_addr);
+    if(inet_ntop(AF_INET, &addr, buf, sizeof(buf))) {
+        printf("|-destination address           %s\n", buf);
+    }
+
     printf("|-nat table size                %lu\n", options->nat_table_size);
     printf("|-nat table entry min lifetime  %ld\n",
            options->nat_table_entry_min_lifetime);

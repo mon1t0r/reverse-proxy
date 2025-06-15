@@ -18,7 +18,8 @@ static size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size);
 static size_t hash_alloc(uint16_t dst_port, size_t size);
 static unsigned int hash_num(unsigned int x);
 
-nat_table *nat_table_alloc(size_t size) {
+nat_table *nat_table_alloc(size_t size)
+{
     nat_table *table;
 
     if(size == 0) {
@@ -49,7 +50,8 @@ err:
     return NULL;
 }
 
-struct nat_entry *nat_table_insert(nat_table *table, struct nat_entry entry) {
+struct nat_entry *nat_table_insert(nat_table *table, struct nat_entry entry)
+{
     struct nat_entry *entry_new;
 
     size_t src_hash;
@@ -87,7 +89,8 @@ err:
 
 /* Do not change values of the returned reference except timestamp. */
 struct nat_entry *nat_table_get_by_src(nat_table *table, uint16_t port_src,
-                                       uint32_t addr_src) {
+                                       uint32_t addr_src)
+{
     size_t index;
     uint64_t data;
 
@@ -108,7 +111,8 @@ struct nat_entry *nat_table_get_by_src(nat_table *table, uint16_t port_src,
 
 /* Do not change values of the returned reference except timestamp. */
 struct nat_entry *nat_table_get_by_alloc(nat_table *table,
-                                         uint16_t port_alloc) {
+                                         uint16_t port_alloc)
+{
     size_t index;
 
     if(table == NULL) {
@@ -122,7 +126,8 @@ struct nat_entry *nat_table_get_by_alloc(nat_table *table,
 }
 
 bool nat_table_remove_if(nat_table *table, const void *data_ptr,
-                         nat_table_remove_condition condition) {
+                         nat_table_remove_condition condition)
+{
     bool result;
 
     if(table == NULL || condition == NULL) {
@@ -139,7 +144,8 @@ bool nat_table_remove_if(nat_table *table, const void *data_ptr,
     return result;
 }
 
-void nat_table_free(nat_table *table) {
+void nat_table_free(nat_table *table)
+{
     if(table == NULL) {
         return;
     }
@@ -150,7 +156,8 @@ void nat_table_free(nat_table *table) {
     free(table);
 }
 
-static bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr) {
+static bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr)
+{
     const uint64_t *nat_data_ptr;
     uint32_t addr_src;
     uint16_t port_src;
@@ -163,19 +170,23 @@ static bool cond_src_to_alloc(struct nat_entry entry, const void *data_ptr) {
     return entry.addr_src == addr_src && entry.port_src == port_src;
 }
 
-static bool cond_alloc_to_src(struct nat_entry entry, const void *data_ptr) {
+static bool cond_alloc_to_src(struct nat_entry entry, const void *data_ptr)
+{
     return entry.port_alloc == *((uint16_t *) data_ptr);
 }
 
-static size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size) {
+static size_t hash_src(uint16_t port_src, uint32_t addr_src, size_t size)
+{
     return hash_num(hash_num(port_src) + hash_num(addr_src)) % size;
 }
 
-static size_t hash_alloc(uint16_t dst_port, size_t size) {
+static size_t hash_alloc(uint16_t dst_port, size_t size)
+{
     return hash_num(dst_port) % size;
 }
 
-static unsigned int hash_num(unsigned int x) {
+static unsigned int hash_num(unsigned int x)
+{
     x = ((x >> 16) ^ x) * 0x45d9f3b;
     x = ((x >> 16) ^ x) * 0x45d9f3b;
     x = (x >> 16) ^ x;

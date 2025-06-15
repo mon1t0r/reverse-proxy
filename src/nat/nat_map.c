@@ -15,7 +15,8 @@ struct nat_map {
 static void list_free(struct nat_node *node,
                       nat_map_free_callback free_callback);
 
-nat_map *nat_map_alloc(size_t size) {
+nat_map *nat_map_alloc(size_t size)
+{
     nat_map *nat_map;
 
     nat_map = malloc(sizeof(struct nat_map));
@@ -35,7 +36,8 @@ nat_map *nat_map_alloc(size_t size) {
     return nat_map;
 }
 
-size_t nat_map_get_size(nat_map *map) {
+size_t nat_map_get_size(nat_map *map)
+{
     if(map == NULL) {
         return 0;
     }
@@ -43,7 +45,8 @@ size_t nat_map_get_size(nat_map *map) {
     return map->size;
 }
 
-bool nat_map_insert(nat_map *map, struct nat_entry *entry, size_t index) {
+bool nat_map_insert(nat_map *map, struct nat_entry *entry, size_t index)
+{
     struct nat_node *node_last;
     struct nat_node *node_new;
 
@@ -83,7 +86,8 @@ bool nat_map_insert(nat_map *map, struct nat_entry *entry, size_t index) {
 
 struct nat_entry *nat_map_find(nat_map *map, size_t index,
                                const void *data_ptr,
-                               nat_map_find_condition condition) {
+                               nat_map_find_condition condition)
+{
     struct nat_node *node;
 
     if(map == NULL || condition == NULL || index < 0 || index >= map->size) {
@@ -105,7 +109,8 @@ struct nat_entry *nat_map_find(nat_map *map, size_t index,
 
 bool nat_map_remove_if(nat_map *map, const void *data_ptr,
                        nat_map_find_condition condition,
-                       nat_map_free_callback free_callback) {
+                       nat_map_free_callback free_callback)
+{
     size_t i;
     bool removed_any;
 
@@ -152,7 +157,8 @@ bool nat_map_remove_if(nat_map *map, const void *data_ptr,
     return removed_any;
 }
 
-void nat_map_free(nat_map *map, nat_map_free_callback free_callback) {
+void nat_map_free(nat_map *map, nat_map_free_callback free_callback)
+{
     size_t i;
 
     if(map == NULL) {
@@ -168,7 +174,8 @@ void nat_map_free(nat_map *map, nat_map_free_callback free_callback) {
 }
 
 static void list_free(struct nat_node *node,
-                      nat_map_free_callback free_callback) {
+                      nat_map_free_callback free_callback)
+{
     struct nat_node *node_cur;
     struct nat_node *node_next;
 

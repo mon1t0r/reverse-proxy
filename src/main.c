@@ -17,9 +17,7 @@
 #include "transport_layer.h"
 #include "checksum.h"
 
-enum {
-    packet_buf_size = 65536
-};
+enum { packet_buf_size = 65536 };
 
 struct handle_context {
     struct proxy_opts  opts;
@@ -27,7 +25,8 @@ struct handle_context {
     nat_table          *nat_table;
 };
 
-static uint16_t get_free_port(struct handle_context *ctx) {
+static uint16_t get_free_port(struct handle_context *ctx)
+{
     uint16_t init_val;
 
     init_val = ctx->port_cntr;
@@ -55,7 +54,8 @@ static uint16_t get_free_port(struct handle_context *ctx) {
     return ctx->port_cntr;
 }
 
-static bool nat_cond_func_time(struct nat_entry entry, const void *data_ptr) {
+static bool nat_cond_func_time(struct nat_entry entry, const void *data_ptr)
+{
     const struct {
         time_t alloc_time;
         time_t min_lifetime;
@@ -68,7 +68,8 @@ static bool nat_cond_func_time(struct nat_entry entry, const void *data_ptr) {
 }
 
 static struct nat_entry *nat_punch_hole(struct handle_context *ctx,
-                                        uint16_t port_src, uint32_t addr_src) {
+                                        uint16_t port_src, uint32_t addr_src)
+{
     struct nat_entry nat_entry_new;
     struct {
         time_t alloc_time;
@@ -108,7 +109,8 @@ ins:
 
 static void hdr_update_pseudo(struct trans_hdr_map *hdr_map,
                               uint32_t addr_src_prev, uint32_t addr_dst_prev,
-                              uint32_t addr_src, uint32_t addr_dst) {
+                              uint32_t addr_src, uint32_t addr_dst)
+{
     *hdr_map->checksum = recompute_checksum_32(
         *hdr_map->checksum, addr_src_prev, addr_src);
     *hdr_map->checksum = recompute_checksum_32(
@@ -116,7 +118,8 @@ static void hdr_update_pseudo(struct trans_hdr_map *hdr_map,
 }
 
 static void hdr_set_port(struct trans_hdr_map *hdr_map,
-                         uint16_t port_src, uint16_t port_dst) {
+                         uint16_t port_src, uint16_t port_dst)
+{
     *hdr_map->checksum = recompute_checksum_16(
         *hdr_map->checksum, *hdr_map->port_src, port_src);
     *hdr_map->checksum = recompute_checksum_16(
@@ -129,7 +132,8 @@ static void hdr_set_port(struct trans_hdr_map *hdr_map,
 /* Server to client */
 static bool packet_handle_stoc(struct handle_context *ctx,
                                struct trans_hdr_map *hdr_map,
-                               struct sockaddr_in *addr, int protocol) {
+                               struct sockaddr_in *addr, int protocol)
+{
     struct nat_entry *nat_entry_ptr;
 
     /* Look for existing NAT entry */
@@ -163,7 +167,8 @@ static bool packet_handle_stoc(struct handle_context *ctx,
 /* Client to server */
 static bool packet_handle_ctos(struct handle_context *ctx,
                                struct trans_hdr_map *hdr_map,
-                               struct sockaddr_in *addr, int protocol) {
+                               struct sockaddr_in *addr, int protocol)
+{
     struct nat_entry *nat_entry_ptr;
 
     /* Look for existing NAT entry */
@@ -202,7 +207,8 @@ static bool packet_handle_ctos(struct handle_context *ctx,
 }
 
 static bool packet_handle(struct handle_context *ctx, uint8_t *buf,
-                          struct sockaddr_in *addr, int protocol) {
+                          struct sockaddr_in *addr, int protocol)
+{
     struct trans_hdr_map hdr_map;
 
     if(map_transport_header(buf, protocol, &hdr_map) == 0) {
@@ -224,7 +230,8 @@ static bool packet_handle(struct handle_context *ctx, uint8_t *buf,
     return false;
 }
 
-static void socket_init(int socket_fd, const char *int_name) {
+static void socket_init(int socket_fd, const char *int_name)
+{
     int sockoptval;
     int int_name_len;
 
@@ -250,7 +257,8 @@ static void socket_init(int socket_fd, const char *int_name) {
     }
 }
 
-static int socket_create(int protocol) {
+static int socket_create(int protocol)
+{
     int socket_fd;
 
     if((socket_fd = socket(AF_INET, SOCK_RAW, protocol)) < 0) {
@@ -261,7 +269,8 @@ static int socket_create(int protocol) {
     return socket_fd;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char * const *argv)
+{
     struct handle_context ctx;
 
     int sock_tcp_fd, sock_udp_fd;
