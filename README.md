@@ -53,20 +53,31 @@ DEST_PORT   - port number of the destination (where packets will be forwarded)
 ```
 
 ## Important info
-Before using the proxy, make sure the correct port numbers are specified in the
-script and run
+Before using the proxy, make sure to disable kernel TCP reply:
 ```
-sudo scripts/disable_tcp_reply.sh
+sudo scripts/tcp_reply.sh disable <LISTEN_PORT> [NAT_PORT_RANGE]
+
+Example:
+sudo scripts/tcp_reply.sh disable 52880 49160:49190
 ```
 The script disables kernel processing for TCP packets, so the client will not
-receive `Connection refused` while establishing TCP handshake with the host.
+receive `Connection refused` during TCP handshake with the host.
 
-Kernel processing can be enabled back by running
+Kernel processing can be enabled back by running the same command with changed
+`disable` argument to `enable`:
 ```
-sudo scripts/enable_tcp_reply.sh
+sudo scripts/tcp_reply.sh enable <LISTEN_PORT> [NAT_PORT_RANGE]
+
+Example:
+sudo scripts/tcp_reply.sh enable 52880 49160:49190
 ```
 
-`iptables` needs to be installed in order to execute the script.
+`<LISTEN_PORT>` and `[NAT_PORT_RANGE]` should be the same, that you used when
+running the proxy. `[NAT_PORT_RANGE]` is optional, if not specified, the same
+default port range will be used, that is used when not specifying `-s` and `-e`
+parameters for the proxy.
+
+`iptables` needs to be installed in order to successfully execute the script.
 
 ## TODO
  - perform extensive testing (including UDP packets);
