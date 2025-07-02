@@ -21,7 +21,7 @@ or `--interface` option.
 ```
 gcc
 make
-cppcheck
+cppcheck (debug build only)
 ```
 
 ### Build

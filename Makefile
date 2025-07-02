@@ -34,7 +34,7 @@ mkdir:=mkdir -p
 all: release
 
 # Release rules
-release: check $(RELTARGET)
+release: $(RELTARGET)
 
 $(RELTARGET): $(RELOBJS)
 	$(CC) $(CFLAGS) $(RELCFLAGS) $^ $(LDLIBS) -o $@
