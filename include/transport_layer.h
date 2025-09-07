@@ -9,7 +9,9 @@ struct trans_hdr_map {
     uint16_t *checksum;
 };
 
-uint8_t map_transport_header(uint8_t *buf, uint8_t protocol,
-                             struct trans_hdr_map *trans_hdr_map);
+uint8_t
+hdr_transport_map(uint8_t *buf, uint8_t protocol,
+                  struct trans_hdr_map *trans_hdr_map);
 
 #endif
+

@@ -12,8 +12,8 @@ struct nat_map {
     struct nat_node **node_arr;
 };
 
-static void list_free(struct nat_node *node,
-                      nat_map_free_callback free_callback);
+static void
+list_free(struct nat_node *node, nat_map_free_callback free_callback);
 
 nat_map *nat_map_alloc(size_t size)
 {
@@ -84,9 +84,9 @@ bool nat_map_insert(nat_map *map, struct nat_entry *entry, size_t index)
     return true;
 }
 
-struct nat_entry *nat_map_find(nat_map *map, size_t index,
-                               const void *data_ptr,
-                               nat_map_find_condition condition)
+struct nat_entry *
+nat_map_find(nat_map *map, size_t index, const void *data_ptr,
+             nat_map_find_condition condition)
 {
     struct nat_node *node;
 
@@ -173,8 +173,8 @@ void nat_map_free(nat_map *map, nat_map_free_callback free_callback)
     free(map);
 }
 
-static void list_free(struct nat_node *node,
-                      nat_map_free_callback free_callback)
+static void
+list_free(struct nat_node *node, nat_map_free_callback free_callback)
 {
     struct nat_node *node_cur;
     struct nat_node *node_next;
@@ -196,3 +196,4 @@ static void list_free(struct nat_node *node,
         node_cur = node_next;
     }
 }
+

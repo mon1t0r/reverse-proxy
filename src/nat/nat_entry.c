@@ -16,3 +16,4 @@ bool nat_entries_equal(struct nat_entry *entry_1, struct nat_entry *entry_2)
 
     return true;
 }
+

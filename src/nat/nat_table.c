@@ -88,8 +88,8 @@ err:
 }
 
 /* Do not change values of the returned reference except timestamp. */
-struct nat_entry *nat_table_get_by_src(nat_table *table, uint16_t port_src,
-                                       uint32_t addr_src)
+struct nat_entry *
+nat_table_get_by_src(nat_table *table, uint16_t port_src, uint32_t addr_src)
 {
     size_t index;
     uint64_t data;
@@ -110,8 +110,8 @@ struct nat_entry *nat_table_get_by_src(nat_table *table, uint16_t port_src,
 }
 
 /* Do not change values of the returned reference except timestamp. */
-struct nat_entry *nat_table_get_by_alloc(nat_table *table,
-                                         uint16_t port_alloc)
+struct nat_entry *
+nat_table_get_by_alloc(nat_table *table, uint16_t port_alloc)
 {
     size_t index;
 
@@ -192,3 +192,4 @@ static unsigned int hash_num(unsigned int x)
     x = (x >> 16) ^ x;
     return x;
 }
+

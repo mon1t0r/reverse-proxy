@@ -1,7 +1,7 @@
 #include "checksum.h"
 
-uint16_t recompute_checksum_16(uint16_t old_sum, uint16_t old_val,
-                               uint16_t new_val)
+uint16_t
+checksum_recomp_16(uint16_t old_sum, uint16_t old_val, uint16_t new_val)
 {
     uint32_t sum;
 
@@ -16,8 +16,8 @@ uint16_t recompute_checksum_16(uint16_t old_sum, uint16_t old_val,
     return (uint16_t) ~sum;
 }
 
-uint16_t recompute_checksum_32(uint16_t old_sum, uint32_t old_val,
-                               uint32_t new_val)
+uint16_t
+checksum_recomp_32(uint16_t old_sum, uint32_t old_val, uint32_t new_val)
 {
     uint32_t sum;
 
@@ -31,3 +31,4 @@ uint16_t recompute_checksum_32(uint16_t old_sum, uint32_t old_val,
 
     return (uint16_t) ~sum;
 }
+

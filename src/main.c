@@ -67,8 +67,9 @@ static bool nat_cond_func_time(struct nat_entry entry, const void *data_ptr)
            nat_data_ptr->min_lifetime;
 }
 
-static struct nat_entry *nat_punch_hole(struct handle_context *ctx,
-                                        uint16_t port_src, uint32_t addr_src)
+static struct nat_entry *
+nat_punch_hole(struct handle_context *ctx, uint16_t port_src,
+               uint32_t addr_src)
 {
     struct nat_entry nat_entry_new;
     struct {
@@ -107,22 +108,23 @@ ins:
     return nat_table_insert(ctx->nat_table, nat_entry_new);
 }
 
-static void hdr_update_pseudo(struct trans_hdr_map *hdr_map,
-                              uint32_t addr_src_prev, uint32_t addr_dst_prev,
-                              uint32_t addr_src, uint32_t addr_dst)
+static void
+hdr_update_pseudo(struct trans_hdr_map *hdr_map, uint32_t addr_src_prev,
+                  uint32_t addr_dst_prev, uint32_t addr_src, uint32_t addr_dst)
 {
-    *hdr_map->checksum = recompute_checksum_32(
+    *hdr_map->checksum = checksum_recomp_32(
         *hdr_map->checksum, addr_src_prev, addr_src);
-    *hdr_map->checksum = recompute_checksum_32(
+    *hdr_map->checksum = checksum_recomp_32(
         *hdr_map->checksum, addr_dst_prev, addr_dst);
 }
 
-static void hdr_set_port(struct trans_hdr_map *hdr_map,
-                         uint16_t port_src, uint16_t port_dst)
+static void
+hdr_set_port(struct trans_hdr_map *hdr_map, uint16_t port_src,
+             uint16_t port_dst)
 {
-    *hdr_map->checksum = recompute_checksum_16(
+    *hdr_map->checksum = checksum_recomp_16(
         *hdr_map->checksum, *hdr_map->port_src, port_src);
-    *hdr_map->checksum = recompute_checksum_16(
+    *hdr_map->checksum = checksum_recomp_16(
         *hdr_map->checksum, *hdr_map->port_dst, port_dst);
 
     *hdr_map->port_src = port_src;
@@ -130,9 +132,9 @@ static void hdr_set_port(struct trans_hdr_map *hdr_map,
 }
 
 /* Server to client */
-static bool packet_handle_stoc(struct handle_context *ctx,
-                               struct trans_hdr_map *hdr_map,
-                               struct sockaddr_in *addr, int protocol)
+static bool
+packet_handle_stoc(struct handle_context *ctx, struct trans_hdr_map *hdr_map,
+                   struct sockaddr_in *addr, int protocol)
 {
     struct nat_entry *nat_entry_ptr;
 
@@ -165,9 +167,9 @@ static bool packet_handle_stoc(struct handle_context *ctx,
 }
 
 /* Client to server */
-static bool packet_handle_ctos(struct handle_context *ctx,
-                               struct trans_hdr_map *hdr_map,
-                               struct sockaddr_in *addr, int protocol)
+static bool
+packet_handle_ctos(struct handle_context *ctx, struct trans_hdr_map *hdr_map,
+                   struct sockaddr_in *addr, int protocol)
 {
     struct nat_entry *nat_entry_ptr;
 
@@ -206,12 +208,13 @@ static bool packet_handle_ctos(struct handle_context *ctx,
     return true;
 }
 
-static bool packet_handle(struct handle_context *ctx, uint8_t *buf,
-                          struct sockaddr_in *addr, int protocol)
+static bool
+packet_handle(struct handle_context *ctx, uint8_t *buf,
+              struct sockaddr_in *addr, int protocol)
 {
     struct trans_hdr_map hdr_map;
 
-    if(map_transport_header(buf, protocol, &hdr_map) == 0) {
+    if(hdr_transport_map(buf, protocol, &hdr_map) == 0) {
         return false;
     }
 
@@ -379,3 +382,4 @@ exit:
 
     return EXIT_SUCCESS;
 }
+

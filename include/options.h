@@ -21,3 +21,4 @@ struct proxy_opts options_parse(int argc, char * const *argv);
 void options_print(const struct proxy_opts *options);
 
 #endif
+
